@@ -98,3 +98,27 @@ A responsive web app for tracking migraines, triggers, and medications — with 
 - Large tap targets, minimal steps for quick logging
 - Dark mode support
 
+---
+
+## Phase 5: PA Insurance Module
+
+### Prior Authorization Tracking
+- Log PA requests: medication/procedure, insurance company, submission date
+- Track status (submitted, pending, approved, denied, appealed)
+- Upload/attach supporting documents
+
+### Approval Predictor
+- AI analyzes past PA outcomes and current request details
+- Predicts likelihood of approval based on medication, diagnosis, insurance company
+- Suggests strategies to improve approval chances
+
+### Missing Documents / Suggestions
+- AI reviews PA submission and identifies missing or weak documentation
+- Suggests additional documents that could strengthen the case (lab results, prior med failures, clinical notes)
+- Checklist of requirements per insurance company
+
+### Timeline Predictor
+- Estimates expected processing time based on insurance company and request type
+- Tracks actual vs. predicted timelines
+- Alerts when PA is taking longer than expected
+
