@@ -38,11 +38,11 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/auth" element={<AuthRoute />} />
-            <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-            <Route path="/triggers" element={<ProtectedRoute><Triggers /></ProtectedRoute>} />
-            <Route path="/medications" element={<ProtectedRoute><Medications /></ProtectedRoute>} />
-            <Route path="/calendar" element={<ProtectedRoute><CalendarView /></ProtectedRoute>} />
-            <Route path="/pa-insurance" element={<ProtectedRoute><PAInsurance /></ProtectedRoute>} />
+            <Route path="/" element={<AppLayout><Medications /></AppLayout>} />
+            <Route path="/triggers" element={<AppLayout><Triggers /></AppLayout>} />
+            <Route path="/medications" element={<AppLayout><Medications /></AppLayout>} />
+            <Route path="/calendar" element={<AppLayout><CalendarView /></AppLayout>} />
+            <Route path="/pa-insurance" element={<AppLayout><PAInsurance /></AppLayout>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
