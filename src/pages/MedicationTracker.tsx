@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { Pill, Plus, Clock, Archive, ChevronDown, ChevronUp, X } from "lucide-react";
 
 const CLASSIFICATIONS = [
@@ -20,6 +21,28 @@ const CLASSIFICATIONS = [
   "Other",
 ];
 
+// Supplement subtypes — shown only when Classification = Supplement
+const SUPPLEMENT_SUBTYPES: Record<string, string[]> = {
+  Magnesium: [
+    "Magnesium Glycinate",
+    "Magnesium Oxide",
+    "Magnesium Citrate",
+    "Magnesium Malate",
+    "Magnesium Threonate",
+    "Magnesium Taurate",
+    "Magnesium Chloride",
+    "Magnesium Sulfate (Epsom)",
+  ],
+  "Vitamin B2 (Riboflavin)": ["Riboflavin 400mg"],
+  "Coenzyme Q10": ["CoQ10 – Ubiquinol", "CoQ10 – Ubiquinone"],
+  "Omega-3": ["Fish Oil", "Algal Oil (Vegan)"],
+  Melatonin: ["Melatonin 0.5mg", "Melatonin 1mg", "Melatonin 3mg", "Melatonin 5mg", "Melatonin 10mg"],
+  "Vitamin D": ["Vitamin D3", "Vitamin D2"],
+  Other: ["Other Supplement"],
+};
+
+const SUPPLEMENT_BASE_NAMES = Object.keys(SUPPLEMENT_SUBTYPES);
+
 type Medication = {
   id: number;
   name: string;
@@ -33,7 +56,7 @@ type Medication = {
 const MOCK_MEDS: Medication[] = [
   { id: 1, name: "Topiramate", dosage: "50mg", classification: "Migraine Prevention", frequency: "Daily", active: true, logs: [{ time: "8:00 AM" }, { time: "8:00 PM" }] },
   { id: 2, name: "Sumatriptan", dosage: "100mg", classification: "Acute/Rescue", frequency: "As needed", active: true, logs: [{ time: "2:30 PM" }] },
-  { id: 3, name: "Magnesium", dosage: "400mg", classification: "Supplement", frequency: "Daily", active: true, logs: [{ time: "9:00 AM" }] },
+  { id: 3, name: "Magnesium Glycinate", dosage: "400mg", classification: "Supplement", frequency: "Daily", active: true, logs: [{ time: "9:00 AM" }] },
   { id: 4, name: "Propranolol", dosage: "80mg", classification: "Migraine Prevention", frequency: "Daily", active: false, logs: [] },
   { id: 5, name: "Amitriptyline", dosage: "25mg", classification: "Migraine Prevention", frequency: "Nightly", active: false, logs: [] },
   { id: 6, name: "Valproate", dosage: "500mg", classification: "Migraine Prevention", frequency: "Daily", active: false, logs: [] },
@@ -50,10 +73,21 @@ export default function MedicationTracker() {
   const [meds, setMeds] = useState<Medication[]>(MOCK_MEDS);
   const [showForm, setShowForm] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
+
+  // Form state
   const [name, setName] = useState("");
   const [dosage, setDosage] = useState("");
   const [classification, setClassification] = useState("");
   const [frequency, setFrequency] = useState("");
+  // Supplement-specific
+  const [supplementBase, setSupplementBase] = useState("");
+  const [supplementSubtype, setSupplementSubtype] = useState("");
+
+  const isSupplementClass = classification === "Supplement";
+  const subtypeOptions = supplementBase ? SUPPLEMENT_SUBTYPES[supplementBase] ?? [] : [];
+  const resolvedName = isSupplementClass
+    ? supplementSubtype || supplementBase || name
+    : name;
 
   const activeMeds = meds.filter((m) => m.active);
   const inactiveMeds = meds.filter((m) => !m.active);
@@ -61,10 +95,15 @@ export default function MedicationTracker() {
   const activePreventives = meds.filter((m) => m.classification === "Migraine Prevention" && m.active).length;
   const discontinuedPreventives = totalPreventivesTried - activePreventives;
 
-  const addMed = () => {
-    if (!name || !classification) return;
-    setMeds([...meds, { id: Date.now(), name, dosage, classification, frequency, active: true, logs: [] }]);
+  const resetForm = () => {
     setName(""); setDosage(""); setClassification(""); setFrequency("");
+    setSupplementBase(""); setSupplementSubtype("");
+  };
+
+  const addMed = () => {
+    if (!resolvedName || !classification) return;
+    setMeds([...meds, { id: Date.now(), name: resolvedName, dosage, classification, frequency, active: true, logs: [] }]);
+    resetForm();
     setShowForm(false);
   };
 
@@ -88,7 +127,7 @@ export default function MedicationTracker() {
           <h1 className="text-2xl font-bold tracking-tight">Medications</h1>
           <p className="text-muted-foreground">Track your medications & doses</p>
         </div>
-        <Button size="sm" onClick={() => setShowForm(!showForm)}>
+        <Button size="sm" onClick={() => { setShowForm(!showForm); if (showForm) resetForm(); }}>
           <Plus className="h-4 w-4 mr-1" /> Add
         </Button>
       </div>
@@ -124,27 +163,89 @@ export default function MedicationTracker() {
       {showForm && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">New Medication</CardTitle>
+            <CardTitle className="text-base">New Medication / Supplement</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Input placeholder="Medication name" value={name} onChange={(e) => setName(e.target.value)} />
-            <div className="grid grid-cols-2 gap-3">
-              <Input placeholder="Dosage (e.g. 50mg)" value={dosage} onChange={(e) => setDosage(e.target.value)} />
-              <Input placeholder="Frequency (e.g. Daily)" value={frequency} onChange={(e) => setFrequency(e.target.value)} />
+            {/* Classification first so we can show smart fields */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Classification</Label>
+              <Select value={classification} onValueChange={(v) => {
+                setClassification(v);
+                setSupplementBase("");
+                setSupplementSubtype("");
+                setName("");
+              }}>
+                <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                <SelectContent>
+                  {CLASSIFICATIONS.map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <Select value={classification} onValueChange={setClassification}>
-              <SelectTrigger>
-                <SelectValue placeholder="Classification" />
-              </SelectTrigger>
-              <SelectContent>
-                {CLASSIFICATIONS.map((c) => (
-                  <SelectItem key={c} value={c}>{c}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+
+            {/* Supplement-specific flow */}
+            {isSupplementClass ? (
+              <>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Supplement Type</Label>
+                  <Select value={supplementBase} onValueChange={(v) => {
+                    setSupplementBase(v);
+                    setSupplementSubtype("");
+                  }}>
+                    <SelectTrigger><SelectValue placeholder="e.g. Magnesium, Vitamin B2…" /></SelectTrigger>
+                    <SelectContent>
+                      {SUPPLEMENT_BASE_NAMES.map((b) => (
+                        <SelectItem key={b} value={b}>{b}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {supplementBase && subtypeOptions.length > 0 && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">
+                      Specific Form{" "}
+                      <span className="text-muted-foreground/60">(e.g. Glycinate vs Oxide)</span>
+                    </Label>
+                    <Select value={supplementSubtype} onValueChange={setSupplementSubtype}>
+                      <SelectTrigger><SelectValue placeholder="Select specific form" /></SelectTrigger>
+                      <SelectContent>
+                        {subtypeOptions.map((s) => (
+                          <SelectItem key={s} value={s}>{s}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {(supplementSubtype || supplementBase) && (
+                  <p className="text-xs text-muted-foreground bg-muted rounded px-2 py-1.5">
+                    Will be saved as: <span className="font-medium text-foreground">{supplementSubtype || supplementBase}</span>
+                  </p>
+                )}
+              </>
+            ) : (
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Medication Name</Label>
+                <Input placeholder="e.g. Topiramate" value={name} onChange={(e) => setName(e.target.value)} />
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Dosage</Label>
+                <Input placeholder="e.g. 400mg" value={dosage} onChange={(e) => setDosage(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Frequency</Label>
+                <Input placeholder="e.g. Daily" value={frequency} onChange={(e) => setFrequency(e.target.value)} />
+              </div>
+            </div>
+
             <div className="flex gap-2">
-              <Button onClick={addMed} disabled={!name || !classification} className="flex-1">Save</Button>
-              <Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
+              <Button onClick={addMed} disabled={!resolvedName || !classification} className="flex-1">Save</Button>
+              <Button variant="outline" onClick={() => { setShowForm(false); resetForm(); }}>Cancel</Button>
             </div>
           </CardContent>
         </Card>
