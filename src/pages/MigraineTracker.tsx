@@ -533,7 +533,7 @@ export default function MigraineTracker() {
       {/* Entry list */}
       <div className="space-y-3">
         <h2 className="text-lg font-semibold">Recent Entries</h2>
-        {allEntries.slice(0, 6).map((entry) => (
+        {allEntries.slice(0, 3).map((entry) => (
           <Card key={entry.id} className={`overflow-hidden ${"isUserEntry" in entry ? "border-primary/30" : ""}`}>
             <CardContent className="p-4">
               <div className="flex items-start justify-between mb-2">
