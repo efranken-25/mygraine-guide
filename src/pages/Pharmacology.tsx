@@ -8,14 +8,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Search, FlaskConical, AlertTriangle, Zap, TrendingUp, TrendingDown,
   Minus, Brain, Pill, ChevronDown, ChevronUp, RefreshCw, Info,
-  ShieldAlert, Sparkles, Activity, CircleCheck
+  ShieldAlert, Sparkles, Activity, CircleCheck, BookOpen, Eye
 } from "lucide-react";
 
 const PATIENT_MEDS = [
   { name: "Topiramate", dosage: "50mg", type: "preventive", active: true, frequency: "Daily", startedWeeksAgo: 8 },
   { name: "Propranolol", dosage: "80mg", type: "preventive", active: false, frequency: "Daily", startedWeeksAgo: 20 },
   { name: "Sumatriptan", dosage: "100mg", type: "rescue", active: true, frequency: "PRN", startedWeeksAgo: 52 },
-  { name: "Magnesium", dosage: "400mg", type: "supplement", active: true, frequency: "Daily", startedWeeksAgo: 12 },
+  { name: "Magnesium Glycinate", dosage: "400mg", type: "supplement", active: true, frequency: "Daily", startedWeeksAgo: 12 },
   { name: "Amitriptyline", dosage: "25mg", type: "preventive", active: false, frequency: "Nightly", startedWeeksAgo: 32 },
 ];
 
@@ -27,6 +27,14 @@ const MOCK_MIGRAINE_ENTRIES = [
   { date: "Feb 5", severity: 7, duration: "3h 30m", meds: ["Sumatriptan"] },
 ];
 
+type AISummary = {
+  whatItDoes: string;
+  commonSideEffects: string[];
+  importantWarnings: string[];
+  interactions: string[];
+  bottomLine: string;
+};
+
 type DrugInfo = {
   name: string;
   genericName: string;
@@ -37,6 +45,7 @@ type DrugInfo = {
   drugInteractions: string[];
   description: string[];
   indications: string[];
+  aiSummary?: AISummary | null;
 };
 
 type Interaction = {
@@ -122,7 +131,8 @@ export default function Pharmacology() {
   const [drugInfo, setDrugInfo] = useState<DrugInfo | null>(null);
   const [drugLoading, setDrugLoading] = useState(false);
   const [drugError, setDrugError] = useState<string | null>(null);
-  const [expandedSection, setExpandedSection] = useState<string | null>("adverse");
+  const [expandedSection, setExpandedSection] = useState<string | null>(null);
+  const [showFullFDA, setShowFullFDA] = useState(false);
 
   const [drugCorrelation, setDrugCorrelation] = useState<DrugCorrelation | null>(null);
   const [corrDrugLoading, setCorrDrugLoading] = useState(false);
@@ -161,7 +171,8 @@ export default function Pharmacology() {
     setDrugInfo(null);
     setDrugCorrelation(null);
     setCorrDrugError(null);
-    setExpandedSection("adverse");
+    setExpandedSection(null);
+    setShowFullFDA(false);
 
     const { data, error } = await supabase.functions.invoke("drug-lookup", {
       body: { drugName: name.trim() },
@@ -172,7 +183,6 @@ export default function Pharmacology() {
       setDrugError(data?.error || error?.message || "Lookup failed");
     } else {
       setDrugInfo(data.data);
-      // Auto-run correlation analysis right after lookup
       runDrugCorrelation(data.data);
     }
   };
@@ -306,6 +316,7 @@ export default function Pharmacology() {
         {drugLoading && (
           <Card><CardContent className="p-4 space-y-3">
             <Skeleton className="h-5 w-2/5" /><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-4/5" />
+            <Skeleton className="h-20 w-full" /><Skeleton className="h-16 w-full" />
           </CardContent></Card>
         )}
 
@@ -320,69 +331,171 @@ export default function Pharmacology() {
 
         {drugInfo && !drugLoading && (
           <div className="space-y-3">
-            {/* FDA label card */}
+            {/* ── Header ── */}
             <Card>
               <CardContent className="p-4 space-y-4">
-                <div>
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h3 className="font-semibold text-base">{drugInfo.name}</h3>
-                      {drugInfo.brandName && drugInfo.brandName !== drugInfo.name && (
-                        <p className="text-xs text-muted-foreground">Brand: {drugInfo.brandName}</p>
-                      )}
-                      {drugInfo.genericName && drugInfo.genericName.toLowerCase() !== drugInfo.name.toLowerCase() && (
-                        <p className="text-xs text-muted-foreground">Generic: {drugInfo.genericName}</p>
-                      )}
-                    </div>
-                    <Badge variant="outline" className="text-xs shrink-0 bg-primary/5 text-primary border-primary/20">FDA Data</Badge>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h3 className="font-semibold text-base">{drugInfo.name}</h3>
+                    {drugInfo.brandName && drugInfo.brandName !== drugInfo.name && (
+                      <p className="text-xs text-muted-foreground">Brand: {drugInfo.brandName}</p>
+                    )}
+                    {drugInfo.genericName && drugInfo.genericName.toLowerCase() !== drugInfo.name.toLowerCase() && (
+                      <p className="text-xs text-muted-foreground">Generic: {drugInfo.genericName}</p>
+                    )}
+                    {drugInfo.drugClass && (
+                      <p className="text-xs mt-1 text-muted-foreground"><span className="font-medium">Class:</span> {drugInfo.drugClass}</p>
+                    )}
                   </div>
-                  {drugInfo.drugClass && (
-                    <p className="text-xs mt-1 text-muted-foreground"><span className="font-medium">Class:</span> {drugInfo.drugClass}</p>
-                  )}
+                  <Badge variant="outline" className="text-xs shrink-0 bg-primary/5 text-primary border-primary/20">FDA Data</Badge>
                 </div>
 
-                {drugInfo.adverseReactions.length > 0 && (
-                  <Section id="adverse" label="Side Effects & Adverse Reactions" icon={<Zap className="h-4 w-4 text-destructive" />} expanded={expandedSection === "adverse"} onToggle={() => toggle("adverse")}>
-                    <ul className="space-y-1">{drugInfo.adverseReactions.slice(0, 5).map((r, i) => (
-                      <li key={i} className="text-xs text-muted-foreground leading-relaxed flex gap-2"><span className="text-destructive/60 shrink-0">•</span><span>{r}</span></li>
-                    ))}</ul>
-                  </Section>
+                {/* ── AI Plain-Language Summary (default view) ── */}
+                {drugInfo.aiSummary && !showFullFDA && (
+                  <div className="space-y-3">
+                    {/* What it does */}
+                    <div className="rounded-lg bg-primary/5 border border-primary/15 p-3 space-y-1">
+                      <p className="text-xs font-semibold flex items-center gap-1.5 text-primary">
+                        <Pill className="h-3.5 w-3.5" /> What this medication does
+                      </p>
+                      <p className="text-sm text-foreground leading-relaxed">{drugInfo.aiSummary.whatItDoes}</p>
+                    </div>
+
+                    {/* Common side effects */}
+                    {drugInfo.aiSummary.commonSideEffects.length > 0 && (
+                      <div className="space-y-1.5">
+                        <p className="text-xs font-semibold flex items-center gap-1.5 text-destructive">
+                          <Zap className="h-3.5 w-3.5" /> Common side effects
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {drugInfo.aiSummary.commonSideEffects.map((se, i) => (
+                            <span key={i} className="text-xs rounded-full bg-destructive/8 border border-destructive/20 text-foreground px-2.5 py-1">
+                              {se}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Important warnings */}
+                    {drugInfo.aiSummary.importantWarnings.length > 0 && (
+                      <div className="space-y-1.5">
+                        <p className="text-xs font-semibold flex items-center gap-1.5 text-[hsl(var(--warning))]">
+                          <AlertTriangle className="h-3.5 w-3.5" /> Important safety points
+                        </p>
+                        <ul className="space-y-1">
+                          {drugInfo.aiSummary.importantWarnings.map((w, i) => (
+                            <li key={i} className="text-xs text-foreground flex gap-2 items-start leading-relaxed">
+                              <span className="text-[hsl(var(--warning))] shrink-0 mt-0.5">⚠</span>
+                              <span>{w}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Interactions */}
+                    {drugInfo.aiSummary.interactions.length > 0 && (
+                      <div className="space-y-1.5">
+                        <p className="text-xs font-semibold flex items-center gap-1.5 text-[hsl(var(--warning))]">
+                          <Activity className="h-3.5 w-3.5" /> Drug interactions to know
+                        </p>
+                        <ul className="space-y-1">
+                          {drugInfo.aiSummary.interactions.map((ix, i) => (
+                            <li key={i} className="text-xs text-foreground flex gap-2 items-start leading-relaxed">
+                              <span className="text-primary shrink-0 mt-0.5">↔</span>
+                              <span>{ix}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Bottom line */}
+                    {drugInfo.aiSummary.bottomLine && (
+                      <div className="rounded-lg bg-muted/50 border border-border p-3">
+                        <p className="text-xs font-semibold text-muted-foreground mb-0.5">Bottom line</p>
+                        <p className="text-sm font-medium leading-relaxed">{drugInfo.aiSummary.bottomLine}</p>
+                      </div>
+                    )}
+
+                    {/* Toggle to full FDA */}
+                    <button
+                      onClick={() => setShowFullFDA(true)}
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors pt-1"
+                    >
+                      <BookOpen className="h-3.5 w-3.5" />
+                      View full FDA label data
+                    </button>
+                  </div>
                 )}
 
-                {drugInfo.drugInteractions.length > 0 && (
-                  <Section id="interactions" label="Drug Interactions (FDA Label)" icon={<AlertTriangle className="h-4 w-4 text-[hsl(var(--warning))]" />} expanded={expandedSection === "interactions"} onToggle={() => toggle("interactions")}>
-                    <ul className="space-y-1">{drugInfo.drugInteractions.slice(0, 5).map((r, i) => (
-                      <li key={i} className="text-xs text-muted-foreground leading-relaxed flex gap-2"><span className="text-[hsl(var(--warning))]/60 shrink-0">•</span><span>{r}</span></li>
-                    ))}</ul>
-                  </Section>
-                )}
+                {/* ── Full FDA label (expandable sections) ── */}
+                {(showFullFDA || !drugInfo.aiSummary) && (
+                  <div className="space-y-2">
+                    {showFullFDA && (
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                          <BookOpen className="h-3.5 w-3.5" /> Full FDA Label
+                        </p>
+                        {drugInfo.aiSummary && (
+                          <button
+                            onClick={() => setShowFullFDA(false)}
+                            className="flex items-center gap-1 text-xs text-primary hover:underline"
+                          >
+                            <Eye className="h-3 w-3" /> Back to summary
+                          </button>
+                        )}
+                      </div>
+                    )}
 
-                {drugInfo.warnings.length > 0 && (
-                  <Section id="warnings" label="Warnings" icon={<AlertTriangle className="h-4 w-4 text-destructive" />} expanded={expandedSection === "warnings"} onToggle={() => toggle("warnings")}>
-                    <ul className="space-y-1">{drugInfo.warnings.slice(0, 4).map((r, i) => (
-                      <li key={i} className="text-xs text-muted-foreground leading-relaxed flex gap-2"><span className="text-destructive/60 shrink-0">•</span><span>{r}</span></li>
-                    ))}</ul>
-                  </Section>
-                )}
+                    {drugInfo.adverseReactions.length > 0 && (
+                      <Section id="adverse" label="Side Effects & Adverse Reactions" icon={<Zap className="h-4 w-4 text-destructive" />} expanded={expandedSection === "adverse"} onToggle={() => toggle("adverse")}>
+                        <ul className="space-y-1">{drugInfo.adverseReactions.map((r, i) => (
+                          <li key={i} className="text-xs text-muted-foreground leading-relaxed flex gap-2"><span className="text-destructive/60 shrink-0">•</span><span>{r}</span></li>
+                        ))}</ul>
+                      </Section>
+                    )}
 
-                {drugInfo.indications.length > 0 && (
-                  <Section id="indications" label="Indications" icon={<Pill className="h-4 w-4 text-primary" />} expanded={expandedSection === "indications"} onToggle={() => toggle("indications")}>
-                    <ul className="space-y-1">{drugInfo.indications.slice(0, 4).map((r, i) => (
-                      <li key={i} className="text-xs text-muted-foreground leading-relaxed flex gap-2"><span className="text-primary/60 shrink-0">•</span><span>{r}</span></li>
-                    ))}</ul>
-                  </Section>
+                    {drugInfo.drugInteractions.length > 0 && (
+                      <Section id="interactions" label="Drug Interactions (FDA Label)" icon={<AlertTriangle className="h-4 w-4 text-[hsl(var(--warning))]" />} expanded={expandedSection === "interactions"} onToggle={() => toggle("interactions")}>
+                        <ul className="space-y-1">{drugInfo.drugInteractions.map((r, i) => (
+                          <li key={i} className="text-xs text-muted-foreground leading-relaxed flex gap-2"><span className="text-[hsl(var(--warning))]/60 shrink-0">•</span><span>{r}</span></li>
+                        ))}</ul>
+                      </Section>
+                    )}
+
+                    {drugInfo.warnings.length > 0 && (
+                      <Section id="warnings" label="Warnings" icon={<AlertTriangle className="h-4 w-4 text-destructive" />} expanded={expandedSection === "warnings"} onToggle={() => toggle("warnings")}>
+                        <ul className="space-y-1">{drugInfo.warnings.map((r, i) => (
+                          <li key={i} className="text-xs text-muted-foreground leading-relaxed flex gap-2"><span className="text-destructive/60 shrink-0">•</span><span>{r}</span></li>
+                        ))}</ul>
+                      </Section>
+                    )}
+
+                    {drugInfo.indications.length > 0 && (
+                      <Section id="indications" label="Indications" icon={<Pill className="h-4 w-4 text-primary" />} expanded={expandedSection === "indications"} onToggle={() => toggle("indications")}>
+                        <ul className="space-y-1">{drugInfo.indications.map((r, i) => (
+                          <li key={i} className="text-xs text-muted-foreground leading-relaxed flex gap-2"><span className="text-primary/60 shrink-0">•</span><span>{r}</span></li>
+                        ))}</ul>
+                      </Section>
+                    )}
+                  </div>
                 )}
 
                 <div className="flex items-start gap-1.5 pt-1 border-t border-border/50">
                   <Info className="h-3 w-3 text-muted-foreground shrink-0 mt-0.5" />
                   <p className="text-[10px] text-muted-foreground leading-relaxed">
-                    Data from FDA drug label database (openFDA). Informational only — always consult your prescriber or pharmacist.
+                    {drugInfo.aiSummary
+                      ? "AI-summarized from FDA label data. "
+                      : "Data from FDA drug label database (openFDA). "}
+                    Not a substitute for professional medical advice. If you notice any of these side effects or interactions, please contact your prescriber or pharmacist — they can review your full medication history and make any necessary adjustments.
                   </p>
                 </div>
               </CardContent>
             </Card>
 
-            {/* AI correlation card — loads right below */}
+            {/* AI correlation card */}
             <Card className={`border transition-all ${drugCorrelation ? riskBorder(drugCorrelation.overallRisk) : "border-primary/20 bg-primary/5"}`}>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
@@ -417,14 +530,12 @@ export default function Pharmacology() {
                     <span className="text-xs text-muted-foreground">when combined with current meds</span>
                   </div>
 
-                  {/* Summary */}
                   {drugCorrelation.summary && (
                     <p className="text-xs text-muted-foreground leading-relaxed border-l-2 border-primary/30 pl-3">
                       {drugCorrelation.summary}
                     </p>
                   )}
 
-                  {/* Drug-drug interactions */}
                   {drugCorrelation.interactions?.length > 0 && (
                     <div className="space-y-2">
                       <p className="text-xs font-semibold flex items-center gap-1.5">
@@ -457,7 +568,6 @@ export default function Pharmacology() {
                     </div>
                   )}
 
-                  {/* Side effect overlaps */}
                   {drugCorrelation.sideEffectOverlaps?.length > 0 && (
                     <div className="space-y-2">
                       <p className="text-xs font-semibold flex items-center gap-1.5">
@@ -476,7 +586,6 @@ export default function Pharmacology() {
                     </div>
                   )}
 
-                  {/* Migraine relevance */}
                   {drugCorrelation.migraineRelevance && (
                     <div className="rounded-lg border border-border/50 bg-muted/20 p-3 space-y-1">
                       <p className="text-xs font-semibold flex items-center gap-1.5">
