@@ -495,7 +495,7 @@ export default function Pharmacology() {
                   <div className="flex items-start gap-1.5 pt-1 border-t border-border/50">
                     <Info className="h-3 w-3 text-muted-foreground shrink-0 mt-0.5" />
                     <p className="text-[10px] text-muted-foreground leading-relaxed">
-                      AI-generated clinical analysis. Not a substitute for professional medical advice.
+                      AI-generated clinical analysis. Not a substitute for professional medical advice. If you notice any of these trends or interactions, please reach out to your prescriber or pharmacist — they can review your full medication history and make any necessary adjustments.
                     </p>
                   </div>
                 </CardContent>

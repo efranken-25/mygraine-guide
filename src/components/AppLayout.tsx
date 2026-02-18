@@ -8,7 +8,7 @@ const navItems = [
   { to: "/", icon: Home, label: "Home" },
   { to: "/calendar", icon: Calendar, label: "Calendar" },
   { to: "/medications", icon: Pill, label: "Meds" },
-  { to: "/pharmacology", icon: FlaskConical, label: "Drugs" },
+  { to: "/pharmacology", icon: FlaskConical, label: "Medications" },
   { to: "/find-care", icon: Stethoscope, label: "Find Care" },
   { to: "/insurance", icon: ShieldCheck, label: "Insurance" },
 ];
