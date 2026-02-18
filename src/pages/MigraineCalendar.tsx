@@ -3,8 +3,9 @@ import { format, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval, getDay,
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, ChevronLeft, ChevronRight, Brain, Clock, Droplets, Wind, Pill } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, Brain, Clock, Droplets, Wind, Pill, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import LogMigraineForm, { UserEntry } from "@/components/LogMigraineForm";
 
 type MigraineDay = {
   date: Date;
@@ -88,13 +89,18 @@ function severityTextColor(s: number) {
 export default function MigraineCalendar() {
   const [currentMonth, setCurrentMonth] = useState(new Date(2026, 1, 1));
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  const [userEntries, setUserEntries] = useState<UserEntry[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [formDate, setFormDate] = useState<string | undefined>(undefined);
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
   const startDayOfWeek = getDay(monthStart);
 
-  const getMigraineForDay = (day: Date) => MIGRAINE_DATA.find((m) => isSameDay(m.date, day));
+  const getMigraineForDay = (day: Date) =>
+    MIGRAINE_DATA.find((m) => isSameDay(m.date, day)) ??
+    userEntries.find((e) => e.date === format(day, "MMM d"));
 
   const monthMigraines = MIGRAINE_DATA.filter((m) => m.date >= monthStart && m.date <= monthEnd);
 
@@ -103,6 +109,15 @@ export default function MigraineCalendar() {
     : "—";
 
   const selectedMigraine = selectedDay ? getMigraineForDay(selectedDay) : null;
+
+  // Helpers to handle both MigraineDay and UserEntry shapes
+  const getWater = (m: MigraineDay | UserEntry) => "waterMl" in m ? `${(m.waterMl / 1000).toFixed(1)}L` : "—";
+  const getStress = (m: MigraineDay | UserEntry) => "stressLevel" in m ? m.stressLevel : m.stress;
+  const getSleep = (m: MigraineDay | UserEntry) => "sleepHours" in m ? m.sleepHours : m.sleep;
+  const getCaffeine = (m: MigraineDay | UserEntry) => "caffeinesMg" in m ? `${m.caffeinesMg}mg` : `${m.caffeine}mg`;
+  const getSkipped = (m: MigraineDay | UserEntry) => "skippedMeals" in m ? m.skippedMeals : m.skippedMeal;
+  const getMeds = (m: MigraineDay | UserEntry) => "medication" in m ? (m.medication !== "None" ? m.medication : null) : (m.meds.length > 0 ? m.meds.join(", ") : null);
+  const isUserEntryFn = (m: MigraineDay | UserEntry): m is UserEntry => "isUserEntry" in m;
 
   return (
     <div className="space-y-6">
@@ -220,26 +235,29 @@ export default function MigraineCalendar() {
               </div>
               <div className="bg-muted/40 rounded-lg p-2 text-center">
                 <Droplets className="h-3.5 w-3.5 mx-auto mb-0.5 text-muted-foreground" />
-                <p className="font-medium">{(selectedMigraine.waterMl / 1000).toFixed(1)}L</p>
+                <p className="font-medium">{getWater(selectedMigraine)}</p>
                 <p className="text-muted-foreground text-[10px]">Water</p>
               </div>
               <div className="bg-muted/40 rounded-lg p-2 text-center">
                 <Wind className="h-3.5 w-3.5 mx-auto mb-0.5 text-muted-foreground" />
-                <p className="font-medium">{selectedMigraine.weather}</p>
+                <p className="font-medium">{"weather" in selectedMigraine ? selectedMigraine.weather : "—"}</p>
                 <p className="text-muted-foreground text-[10px]">Weather</p>
               </div>
             </div>
 
-            {/* Location & med */}
+            {/* Location & stats */}
             <div className="flex flex-wrap gap-1.5 text-xs">
               <Badge variant="secondary">{selectedMigraine.area}</Badge>
-              <Badge variant="secondary" className={`capitalize ${selectedMigraine.stressLevel === "Very High" || selectedMigraine.stressLevel === "High" ? "bg-destructive/10 text-destructive border-destructive/20" : ""}`}>
-                Stress: {selectedMigraine.stressLevel}
+              <Badge variant="secondary" className={`capitalize ${getStress(selectedMigraine) === "Very High" || getStress(selectedMigraine) === "High" ? "bg-destructive/10 text-destructive border-destructive/20" : ""}`}>
+                Stress: {getStress(selectedMigraine)}
               </Badge>
-              <Badge variant="secondary">Sleep: {selectedMigraine.sleepHours}h</Badge>
-              <Badge variant="secondary">Caffeine: {selectedMigraine.caffeinesMg}mg</Badge>
-              {selectedMigraine.skippedMeals && (
+              <Badge variant="secondary">Sleep: {getSleep(selectedMigraine)}h</Badge>
+              <Badge variant="secondary">Caffeine: {getCaffeine(selectedMigraine)}</Badge>
+              {getSkipped(selectedMigraine) && (
                 <Badge variant="outline" className="text-[hsl(var(--warning))] border-[hsl(var(--warning))]/30 bg-[hsl(var(--warning))]/10">Skipped Meal</Badge>
+              )}
+              {isUserEntryFn(selectedMigraine) && (
+                <Badge variant="outline" className="text-primary border-primary/30 bg-primary/8">You</Badge>
               )}
             </div>
 
@@ -256,10 +274,10 @@ export default function MigraineCalendar() {
             )}
 
             {/* Medication */}
-            {selectedMigraine.medication && selectedMigraine.medication !== "None" && (
+            {getMeds(selectedMigraine) && (
               <div className="flex items-center gap-1.5 pt-1 border-t border-border/50">
                 <Pill className="h-3 w-3 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">Took <span className="font-medium text-foreground">{selectedMigraine.medication}</span></span>
+                <span className="text-xs text-muted-foreground">Took <span className="font-medium text-foreground">{getMeds(selectedMigraine)}</span></span>
               </div>
             )}
 
@@ -273,12 +291,42 @@ export default function MigraineCalendar() {
 
       {!selectedDay && (
         <p className="text-xs text-muted-foreground text-center">
-          Tap a highlighted day to view full migraine details
+          Tap a highlighted day to view details, or tap any clear day to log a new migraine.
         </p>
       )}
 
       {selectedDay && !selectedMigraine && (
-        <p className="text-xs text-muted-foreground text-center">No migraine recorded for this day</p>
+        <Card className="border-dashed border-border">
+          <CardContent className="p-4 space-y-3 text-center">
+            <p className="text-sm text-muted-foreground">{format(selectedDay, "EEEE, MMM d")} — no migraine recorded.</p>
+            <Button
+              className="w-full flex items-center gap-2"
+              onClick={() => {
+                setFormDate(format(selectedDay, "MMM d"));
+                setShowForm(true);
+              }}
+            >
+              <Plus className="h-4 w-4" /> Log a Migraine for This Day
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Global log button */}
+      <Button
+        variant="outline"
+        className="w-full flex items-center gap-2"
+        onClick={() => { setFormDate(undefined); setShowForm(true); }}
+      >
+        <Plus className="h-4 w-4" /> Log a Migraine Today
+      </Button>
+
+      {showForm && (
+        <LogMigraineForm
+          initialDate={formDate}
+          onSave={(e) => { setUserEntries([e, ...userEntries]); setSelectedDay(null); }}
+          onClose={() => setShowForm(false)}
+        />
       )}
     </div>
   );
