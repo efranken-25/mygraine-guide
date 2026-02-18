@@ -4,11 +4,11 @@ import { Progress } from "@/components/ui/progress";
 import { Brain, Clock, Zap, TrendingUp, TrendingDown, Calendar, Pill, ArrowRight } from "lucide-react";
 
 const MOCK_ENTRIES = [
-  { id: 1, date: "Feb 16", severity: 8, duration: "4h 20m", area: "Left", symptoms: ["Aura", "Nausea", "Light sensitivity"], meds: ["Topiramate", "Sumatriptan"] },
-  { id: 2, date: "Feb 14", severity: 5, duration: "2h 10m", area: "Front", symptoms: ["Neck pain", "Fatigue"], meds: ["Topiramate"] },
-  { id: 3, date: "Feb 11", severity: 9, duration: "6h 45m", area: "Full", symptoms: ["Aura", "Vomiting", "Sound sensitivity", "Visual disturbance"], meds: ["Topiramate", "Sumatriptan"] },
-  { id: 4, date: "Feb 8", severity: 3, duration: "1h 15m", area: "Right", symptoms: ["Eye pain"], meds: ["Topiramate"] },
-  { id: 5, date: "Feb 5", severity: 7, duration: "3h 30m", area: "Back", symptoms: ["Nausea", "Dizziness", "Brain fog"], meds: ["Topiramate"] },
+  { id: 1, date: "Feb 16", severity: 8, duration: "4h 20m", area: "Left", symptoms: ["Aura", "Nausea", "Light sensitivity"], meds: ["Sumatriptan", "Ibuprofen"] },
+  { id: 2, date: "Feb 14", severity: 5, duration: "2h 10m", area: "Front", symptoms: ["Neck pain", "Fatigue"], meds: ["Naproxen"] },
+  { id: 3, date: "Feb 11", severity: 9, duration: "6h 45m", area: "Full", symptoms: ["Aura", "Vomiting", "Sound sensitivity", "Visual disturbance"], meds: ["Sumatriptan", "Ondansetron"] },
+  { id: 4, date: "Feb 8", severity: 3, duration: "1h 15m", area: "Right", symptoms: ["Eye pain"], meds: [] },
+  { id: 5, date: "Feb 5", severity: 7, duration: "3h 30m", area: "Back", symptoms: ["Nausea", "Dizziness", "Brain fog"], meds: ["Sumatriptan"] },
 ];
 
 const MED_EFFECTIVENESS = [
