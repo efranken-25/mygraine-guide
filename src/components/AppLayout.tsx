@@ -22,7 +22,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <div className="mx-auto flex h-14 max-w-2xl items-center justify-between px-4">
           <div className="flex items-center gap-2">
             <Brain className="h-6 w-6 text-primary" />
-            <span className="text-lg font-bold tracking-tight font-serif">MyGraine</span>
+            <span className="text-lg font-bold tracking-tight font-serif">MyGraineGuide</span>
           </div>
         </div>
       </header>
