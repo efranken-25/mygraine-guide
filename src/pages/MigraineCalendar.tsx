@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { format, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval, getDay, subMonths, addMonths } from "date-fns";
+import { format, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval, getDay, subMonths, addMonths, addDays, subDays } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, ChevronLeft, ChevronRight, Brain, Clock, Droplets, Wind, Pill, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Brain, Clock, Droplets, Wind, Pill, Plus, Trash2, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import LogMigraineForm, { UserEntry } from "@/components/LogMigraineForm";
 
@@ -23,9 +23,22 @@ type MigraineDay = {
   triggers: string[];
 };
 
-// Derived from uploaded MigrainTracker_dummy_data.xlsx — migraine days only (had_migraine = yes)
+// Drug class map for same-class detection
+const DRUG_CLASS: Record<string, string> = {
+  Sumatriptan: "Triptan", Rizatriptan: "Triptan", Zolmitriptan: "Triptan",
+  Eletriptan: "Triptan", Frovatriptan: "Triptan", Naratriptan: "Triptan",
+  Almotriptan: "Triptan",
+  Ibuprofen: "NSAID", Naproxen: "NSAID", Aspirin: "NSAID", Diclofenac: "NSAID",
+  Ubrogepant: "Gepant", Rimegepant: "Gepant", Atogepant: "Gepant",
+  Topiramate: "Antiepileptic", Valproate: "Antiepileptic",
+  Propranolol: "Beta-blocker", Metoprolol: "Beta-blocker",
+  Amitriptyline: "TCA", Nortriptyline: "TCA",
+  Erenumab: "Anti-CGRP mAb", Fremanezumab: "Anti-CGRP mAb",
+  Galcanezumab: "Anti-CGRP mAb", Eptinezumab: "Anti-CGRP mAb",
+};
+
+// Migraine dummy data
 const MIGRAINE_DATA: MigraineDay[] = [
-  // February
   { date: new Date(2026, 1, 1),  severity: 7,  durationMin: 165, area: "Right Temporal",    medication: "Sumatriptan",   weather: "Cloudy",       stressLevel: "High",      caffeinesMg: 120, waterMl: 1800, sleepHours: 6.0, skippedMeals: false, notes: "Woke up tired; late coffee",          triggers: ["Poor Sleep", "Caffeine", "Stress"] },
   { date: new Date(2026, 1, 2),  severity: 9,  durationMin: 135, area: "Left Orbital",      medication: "Ibuprofen",     weather: "Rain",         stressLevel: "Very High", caffeinesMg: 0,   waterMl: 1000, sleepHours: 4.5, skippedMeals: true,  notes: "Skipped breakfast; long screen time", triggers: ["Skipped Meal", "Dehydration", "Poor Sleep", "Screen Time", "Rain/Pressure"] },
   { date: new Date(2026, 1, 4),  severity: 5,  durationMin: 165, area: "Bifrontal",         medication: "None",          weather: "Overcast",     stressLevel: "Moderate",  caffeinesMg: 80,  waterMl: 1600, sleepHours: 5.0, skippedMeals: false, notes: "Woke early for work; mild stress",    triggers: ["Poor Sleep", "Stress"] },
@@ -39,7 +52,6 @@ const MIGRAINE_DATA: MigraineDay[] = [
   { date: new Date(2026, 1, 16), severity: 5,  durationMin: 90,  area: "Temporal Band",     medication: "Acetaminophen", weather: "Clear",        stressLevel: "Moderate",  caffeinesMg: 180, waterMl: 1500, sleepHours: 6.5, skippedMeals: false, notes: "Evening screen time; bright room",    triggers: ["Screen Time", "Bright Light", "Caffeine"] },
   { date: new Date(2026, 1, 18), severity: 8,  durationMin: 150, area: "Right Periorbital", medication: "Sumatriptan",   weather: "Rain",         stressLevel: "Very High", caffeinesMg: 70,  waterMl: 1500, sleepHours: 4.5, skippedMeals: true,  notes: "Severe stress; skipped breakfast",    triggers: ["Stress", "Skipped Meal", "Rain/Pressure", "Poor Sleep", "Hormonal/Menstrual"] },
   { date: new Date(2026, 1, 19), severity: 3,  durationMin: 90,  area: "Bifrontal",         medication: "None",          weather: "Overcast",     stressLevel: "Mild",      caffeinesMg: 90,  waterMl: 1800, sleepHours: 7.0, skippedMeals: false, notes: "Mild headache; resolved with rest",   triggers: ["Hormonal/Menstrual"] },
-  // March
   { date: new Date(2026, 2, 2),  severity: 6,  durationMin: 51,  area: "Periorbital",       medication: "Frovatriptan",  weather: "Light Rain",   stressLevel: "Mild",      caffeinesMg: 139, waterMl: 2115, sleepHours: 8.6, skippedMeals: false, notes: "Busy day but felt okay",              triggers: ["Hormonal/Menstrual", "Caffeine"] },
   { date: new Date(2026, 2, 3),  severity: 4,  durationMin: 193, area: "Left Temporal",     medication: "Topiramate",    weather: "Overcast",     stressLevel: "High",      caffeinesMg: 88,  waterMl: 2353, sleepHours: 6.5, skippedMeals: false, notes: "Household chores most of day",        triggers: ["Stress"] },
   { date: new Date(2026, 2, 4),  severity: 10, durationMin: 219, area: "Frontal",           medication: "Ibuprofen",     weather: "Cloudy",       stressLevel: "Mild",      caffeinesMg: 6,   waterMl: 1505, sleepHours: 8.4, skippedMeals: false, notes: "Slept late; early alarm disrupted",  triggers: ["Disrupted Sleep", "Dehydration"] },
@@ -48,7 +60,7 @@ const MIGRAINE_DATA: MigraineDay[] = [
   { date: new Date(2026, 2, 8),  severity: 9,  durationMin: 51,  area: "Vertex",            medication: "Ibuprofen",     weather: "Snow",         stressLevel: "Very High", caffeinesMg: 260, waterMl: 1620, sleepHours: 5.9, skippedMeals: false, notes: "Travel day; irregular meals",         triggers: ["Travel", "Caffeine", "Stress", "Weather/Storm"] },
   { date: new Date(2026, 2, 9),  severity: 8,  durationMin: 173, area: "Left Temporal",     medication: "Naproxen",      weather: "Foggy",        stressLevel: "Moderate",  caffeinesMg: 168, waterMl: 2741, sleepHours: 6.9, skippedMeals: false, notes: "Outdoor walk; low phone use",         triggers: ["Barometric Pressure", "Caffeine"] },
   { date: new Date(2026, 2, 12), severity: 5,  durationMin: 136, area: "Occipital",         medication: "Sumatriptan",   weather: "Partly Cloudy",stressLevel: "Moderate",  caffeinesMg: 24,  waterMl: 1797, sleepHours: 5.1, skippedMeals: false, notes: "Gym in morning; hydrated well",       triggers: ["Poor Sleep", "Hormonal/Menstrual"] },
-  { date: new Date(2026, 2, 13), severity: 9,  durationMin: 82,  area: "Frontal",           medication: "Sumatriptan",   weather: "Thunderstorm", stressLevel: "Very High", caffeinesMg: 13,  waterMl: 1756, sleepHours: 4.4, skippedMeals: true,  notes: "Argued with colleague; thunderstorm", triggers: ["Stress", "Weather/Storm", "Skipped Meal", "Poor Sleep", "Hormonal/Menstrual"] },
+  { date: new Date(2026, 2, 13), severity: 9,  durationMin: 82,  area: "Frontal",           medication: "Rizatriptan",   weather: "Thunderstorm", stressLevel: "Very High", caffeinesMg: 13,  waterMl: 1756, sleepHours: 4.4, skippedMeals: true,  notes: "Argued with colleague; thunderstorm", triggers: ["Stress", "Weather/Storm", "Skipped Meal", "Poor Sleep", "Hormonal/Menstrual"] },
   { date: new Date(2026, 2, 15), severity: 3,  durationMin: 61,  area: "Right Parietal",    medication: "Acetaminophen", weather: "Light Rain",   stressLevel: "Moderate",  caffeinesMg: 177, waterMl: 2054, sleepHours: 4.6, skippedMeals: true,  notes: "Travel day; irregular meals",         triggers: ["Travel", "Skipped Meal", "Poor Sleep", "Hormonal/Menstrual"] },
   { date: new Date(2026, 2, 17), severity: 5,  durationMin: 49,  area: "Right Temporal",    medication: "Topiramate",    weather: "Light Rain",   stressLevel: "Mild",      caffeinesMg: 201, waterMl: 1967, sleepHours: 7.3, skippedMeals: false, notes: "Busy day but felt okay",              triggers: ["Caffeine", "Rain/Pressure"] },
   { date: new Date(2026, 2, 18), severity: 9,  durationMin: 129, area: "Bilateral Temporal",medication: "Zolmitriptan",  weather: "Storm",        stressLevel: "Very High", caffeinesMg: 235, waterMl: 2669, sleepHours: 7.6, skippedMeals: true,  notes: "Travel day; irregular meals",         triggers: ["Weather/Storm", "Travel", "Skipped Meal", "Caffeine", "Stress"] },
@@ -86,37 +98,76 @@ function severityTextColor(s: number) {
   return "text-[hsl(var(--severity-high))]";
 }
 
+/** Get medication string(s) from either entry type */
+function getMedStrings(m: MigraineDay | UserEntry): string[] {
+  if ("medication" in m) return m.medication !== "None" ? [m.medication] : [];
+  return m.meds;
+}
+
 export default function MigraineCalendar() {
   const [currentMonth, setCurrentMonth] = useState(new Date(2026, 1, 1));
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [userEntries, setUserEntries] = useState<UserEntry[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [formDate, setFormDate] = useState<string | undefined>(undefined);
+  // Set of ISO date strings where the user has acknowledged the same-class warning
+  const [dismissedWarnings, setDismissedWarnings] = useState<Set<string>>(new Set());
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
   const startDayOfWeek = getDay(monthStart);
 
-  const getMigraineForDay = (day: Date) =>
+  const getMigraineForDay = (day: Date): MigraineDay | UserEntry | undefined =>
     MIGRAINE_DATA.find((m) => isSameDay(m.date, day)) ??
     userEntries.find((e) => e.date === format(day, "MMM d"));
 
-  const monthMigraines = MIGRAINE_DATA.filter((m) => m.date >= monthStart && m.date <= monthEnd);
+  /** Check if this day + the previous day both have different drugs of the same class */
+  const hasSameClassWarning = (day: Date): { drugA: string; drugB: string; cls: string } | null => {
+    const iso = format(day, "yyyy-MM-dd");
+    if (dismissedWarnings.has(iso)) return null;
 
+    const today = getMigraineForDay(day);
+    const yesterday = getMigraineForDay(subDays(day, 1));
+    if (!today || !yesterday) return null;
+
+    const medsToday = getMedStrings(today);
+    const medsYesterday = getMedStrings(yesterday);
+
+    for (const a of medsToday) {
+      for (const b of medsYesterday) {
+        const clsA = DRUG_CLASS[a];
+        const clsB = DRUG_CLASS[b];
+        if (clsA && clsB && clsA === clsB && a !== b) {
+          return { drugA: a, drugB: b, cls: clsA };
+        }
+      }
+    }
+    return null;
+  };
+
+  const deleteUserEntry = (id: number) => {
+    setUserEntries((prev) => prev.filter((e) => e.id !== id));
+    setSelectedDay(null);
+  };
+
+  const monthMigraines = MIGRAINE_DATA.filter((m) => m.date >= monthStart && m.date <= monthEnd);
   const avgSeverity = monthMigraines.length
     ? (monthMigraines.reduce((a, m) => a + m.severity, 0) / monthMigraines.length).toFixed(1)
     : "—";
 
-  const selectedMigraine = selectedDay ? getMigraineForDay(selectedDay) : null;
+  const selectedMigraine = selectedDay ? getMigraineForDay(selectedDay) : undefined;
+  const selectedWarning = selectedDay ? hasSameClassWarning(selectedDay) : null;
 
-  // Helpers to handle both MigraineDay and UserEntry shapes
   const getWater = (m: MigraineDay | UserEntry) => "waterMl" in m ? `${(m.waterMl / 1000).toFixed(1)}L` : "—";
   const getStress = (m: MigraineDay | UserEntry) => "stressLevel" in m ? m.stressLevel : m.stress;
   const getSleep = (m: MigraineDay | UserEntry) => "sleepHours" in m ? m.sleepHours : m.sleep;
   const getCaffeine = (m: MigraineDay | UserEntry) => "caffeinesMg" in m ? `${m.caffeinesMg}mg` : `${m.caffeine}mg`;
   const getSkipped = (m: MigraineDay | UserEntry) => "skippedMeals" in m ? m.skippedMeals : m.skippedMeal;
-  const getMeds = (m: MigraineDay | UserEntry) => "medication" in m ? (m.medication !== "None" ? m.medication : null) : (m.meds.length > 0 ? m.meds.join(", ") : null);
+  const getMeds = (m: MigraineDay | UserEntry) => {
+    const meds = getMedStrings(m);
+    return meds.length > 0 ? meds.join(", ") : null;
+  };
   const isUserEntryFn = (m: MigraineDay | UserEntry): m is UserEntry => "isUserEntry" in m;
 
   return (
@@ -152,13 +203,13 @@ export default function MigraineCalendar() {
       <Card>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
-            <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
+            <button className="rounded-full p-1.5 hover:bg-muted transition-colors" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
               <ChevronLeft className="h-4 w-4" />
-            </Button>
+            </button>
             <CardTitle className="text-base">{format(currentMonth, "MMMM yyyy")}</CardTitle>
-            <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
+            <button className="rounded-full p-1.5 hover:bg-muted transition-colors" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
               <ChevronRight className="h-4 w-4" />
-            </Button>
+            </button>
           </div>
         </CardHeader>
         <CardContent>
@@ -173,6 +224,7 @@ export default function MigraineCalendar() {
               const migraine = getMigraineForDay(day);
               const isSelected = selectedDay && isSameDay(selectedDay, day);
               const isToday = isSameDay(day, new Date());
+              const warning = hasSameClassWarning(day);
               return (
                 <button
                   key={day.toISOString()}
@@ -181,14 +233,17 @@ export default function MigraineCalendar() {
                     "relative flex flex-col items-center justify-center rounded-lg py-2 text-sm transition-all",
                     isSelected && "ring-2 ring-primary",
                     isToday && !migraine && "bg-muted font-bold",
-                    migraine ? "bg-destructive/10 hover:bg-destructive/20 cursor-pointer" : "hover:bg-muted/50 cursor-default",
+                    migraine ? "bg-destructive/10 hover:bg-destructive/20 cursor-pointer" : "hover:bg-muted/50",
                   )}
                 >
                   <span className={cn("leading-none text-xs", migraine && "font-semibold")}>
                     {format(day, "d")}
                   </span>
-                  {migraine && (
+                  {migraine && !warning && (
                     <span className={cn("mt-1 h-1.5 w-1.5 rounded-full", severityDot(migraine.severity))} />
+                  )}
+                  {warning && (
+                    <span className="mt-0.5 text-[10px] leading-none">⚠️</span>
                   )}
                 </button>
               );
@@ -204,9 +259,40 @@ export default function MigraineCalendar() {
             <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
               <span className="h-2 w-2 rounded-full bg-[hsl(var(--severity-high))]" /> Severe
             </div>
+            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+              ⚠️ Drug warning
+            </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Same-class drug warning banner (shown when day is selected) */}
+      {selectedDay && selectedWarning && (
+        <div className="rounded-2xl border border-[hsl(var(--warning))]/40 bg-[hsl(var(--warning))]/8 p-4 space-y-3">
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-[hsl(var(--warning))]" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-[hsl(var(--warning))]">Same-class medication on consecutive days</p>
+              <p className="text-xs text-foreground/70 mt-1 leading-relaxed">
+                <span className="font-medium">{selectedWarning.drugB}</span> was taken the day before and{" "}
+                <span className="font-medium">{selectedWarning.drugA}</span> was taken today — both are <span className="font-medium">{selectedWarning.cls}s</span>.
+                Taking two drugs from the same class on consecutive days may increase the risk of medication overuse headache and interaction effects.
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full border-[hsl(var(--warning))]/40 text-[hsl(var(--warning))] hover:bg-[hsl(var(--warning))]/10"
+            onClick={() => {
+              setDismissedWarnings((prev) => new Set([...prev, format(selectedDay, "yyyy-MM-dd")]));
+            }}
+          >
+            <CheckCircle2 className="h-4 w-4 mr-2" />
+            I'm aware — confirmed with my provider
+          </Button>
+        </div>
+      )}
 
       {/* Selected day detail */}
       {selectedMigraine && selectedDay && (
@@ -223,6 +309,16 @@ export default function MigraineCalendar() {
                 <span className={cn("inline-flex items-center justify-center h-6 w-6 rounded-full text-xs font-bold text-white", severityDot(selectedMigraine.severity))}>
                   {selectedMigraine.severity}
                 </span>
+                {/* Delete button — only for user entries */}
+                {isUserEntryFn(selectedMigraine) && (
+                  <button
+                    onClick={() => deleteUserEntry(selectedMigraine.id)}
+                    className="ml-1 rounded-full p-1.5 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                    title="Delete this entry"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
               </div>
             </div>
 
@@ -257,7 +353,7 @@ export default function MigraineCalendar() {
                 <Badge variant="outline" className="text-[hsl(var(--warning))] border-[hsl(var(--warning))]/30 bg-[hsl(var(--warning))]/10">Skipped Meal</Badge>
               )}
               {isUserEntryFn(selectedMigraine) && (
-                <Badge variant="outline" className="text-primary border-primary/30 bg-primary/8">You</Badge>
+                <Badge variant="outline" className="text-primary border-primary/30 bg-primary/10">You</Badge>
               )}
             </div>
 
