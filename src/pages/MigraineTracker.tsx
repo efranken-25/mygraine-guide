@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Brain, Clock, Zap, TrendingUp, TrendingDown, Calendar, Pill, ArrowRight, Droplets, Wind, AlertTriangle } from "lucide-react";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 
 // Derived from uploaded dummy data — recent migraine entries with full detail
 const MOCK_ENTRIES = [
@@ -236,24 +237,81 @@ export default function MigraineTracker() {
         </Card>
       </div>
 
-      {/* Severity trend mini chart */}
+      {/* Severity trend chart */}
       <Card>
-        <CardHeader className="pb-3">
+        <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
             <Calendar className="h-4 w-4 text-primary" /> Severity Trend
           </CardTitle>
+          <p className="text-xs text-muted-foreground">Pain level (1–10) across recent migraines</p>
         </CardHeader>
-        <CardContent>
-          <div className="flex items-end gap-2 h-24">
-            {MOCK_ENTRIES.slice().reverse().map((e) => (
-              <div key={e.id} className="flex-1 flex flex-col items-center gap-1">
-                <div
-                  className={`w-full rounded-t-md ${severityColor(e.severity)} transition-all`}
-                  style={{ height: `${(e.severity / 10) * 100}%` }}
-                />
-                <span className="text-[10px] text-muted-foreground">{e.date.split(" ")[1]}</span>
-              </div>
-            ))}
+        <CardContent className="pb-3">
+          <ResponsiveContainer width="100%" height={160}>
+            <AreaChart
+              data={MOCK_ENTRIES.slice().reverse().map((e) => ({
+                date: e.date,
+                severity: e.severity,
+                duration: e.durationMin,
+              }))}
+              margin={{ top: 6, right: 4, left: -20, bottom: 0 }}
+            >
+              <defs>
+                <linearGradient id="severityGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--destructive))" stopOpacity={0.25} />
+                  <stop offset="95%" stopColor="hsl(var(--destructive))" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+              <XAxis
+                dataKey="date"
+                tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v) => v.split(" ")[1]}
+              />
+              <YAxis
+                domain={[0, 10]}
+                ticks={[0, 3, 6, 10]}
+                tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "hsl(var(--card))",
+                  border: "1px solid hsl(var(--border))",
+                  borderRadius: "8px",
+                  fontSize: "12px",
+                  padding: "8px 12px",
+                }}
+                labelStyle={{ fontWeight: 600, color: "hsl(var(--foreground))", marginBottom: 2 }}
+                formatter={(value: number, name: string) => [
+                  name === "severity" ? `${value} / 10` : `${Math.floor(value / 60)}h ${value % 60}m`,
+                  name === "severity" ? "Severity" : "Duration",
+                ]}
+              />
+              <ReferenceLine y={7} stroke="hsl(var(--destructive))" strokeDasharray="4 2" strokeOpacity={0.4} label={{ value: "Severe", position: "insideTopRight", fontSize: 9, fill: "hsl(var(--destructive))", opacity: 0.6 }} />
+              <Area
+                type="monotone"
+                dataKey="severity"
+                stroke="hsl(var(--destructive))"
+                strokeWidth={2}
+                fill="url(#severityGrad)"
+                dot={{ r: 4, fill: "hsl(var(--destructive))", strokeWidth: 0 }}
+                activeDot={{ r: 6, fill: "hsl(var(--destructive))", strokeWidth: 2, stroke: "hsl(var(--background))" }}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+
+          {/* Legend / quick stats */}
+          <div className="flex items-center justify-between mt-1 px-1 text-[10px] text-muted-foreground">
+            <span>← Oldest</span>
+            <span className="flex items-center gap-1">
+              <span className="inline-block h-2 w-2 rounded-full bg-destructive/70" />
+              Severity (1–10)
+              <span className="ml-2 border-l border-destructive/30 pl-2 text-destructive/60">— Severe threshold</span>
+            </span>
+            <span>Newest →</span>
           </div>
         </CardContent>
       </Card>
