@@ -9,6 +9,7 @@ import MigraineCalendar from "@/pages/MigraineCalendar";
 import Predictions from "@/pages/Predictions";
 import Recommendations from "@/pages/Recommendations";
 import MedicationTracker from "@/pages/MedicationTracker";
+import Insurance from "@/pages/Insurance";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,6 +26,7 @@ const App = () => (
           <Route path="/predictions" element={<AppLayout><Predictions /></AppLayout>} />
           <Route path="/recommendations" element={<AppLayout><Recommendations /></AppLayout>} />
           <Route path="/medications" element={<AppLayout><MedicationTracker /></AppLayout>} />
+          <Route path="/insurance" element={<AppLayout><Insurance /></AppLayout>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

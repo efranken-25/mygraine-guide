@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, Calendar, TrendingUp, Lightbulb, Pill } from "lucide-react";
+import { Home, Calendar, TrendingUp, Lightbulb, Pill, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Brain } from "lucide-react";
 
@@ -8,8 +8,8 @@ const navItems = [
   { to: "/", icon: Home, label: "Home" },
   { to: "/calendar", icon: Calendar, label: "Calendar" },
   { to: "/predictions", icon: TrendingUp, label: "Predict" },
-  { to: "/recommendations", icon: Lightbulb, label: "Solutions" },
   { to: "/medications", icon: Pill, label: "Meds" },
+  { to: "/insurance", icon: ShieldCheck, label: "Insurance" },
 ];
 
 export default function AppLayout({ children }: { children: ReactNode }) {
