@@ -21,7 +21,7 @@ export default function Index() {
   const { toast } = useToast();
   const [activeMigraine, setActiveMigraine] = useState<string | null>(null);
   const [severity, setSeverity] = useState(5);
-  const [affectedArea, setAffectedArea] = useState("full");
+  const [affectedArea, setAffectedArea] = useState("frontal");
   const [symptoms, setSymptoms] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
