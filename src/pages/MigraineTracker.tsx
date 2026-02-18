@@ -201,16 +201,105 @@ function verdictStyle(v: string) {
   return { label: "Rescue med", color: "text-primary", bg: "bg-primary/10 border-primary/20" };
 }
 
+function WelcomeBanner() {
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+
+  return (
+    <div className="relative rounded-2xl overflow-hidden" style={{ background: "linear-gradient(135deg, hsl(270 45% 92%), hsl(145 45% 88%), hsl(270 30% 85%))" }}>
+      {/* Decorative SVG flowers */}
+      <svg
+        viewBox="0 0 360 160"
+        className="absolute inset-0 w-full h-full"
+        preserveAspectRatio="xMidYMid slice"
+        aria-hidden="true"
+      >
+        {/* Large purple bloom — top right */}
+        <g opacity="0.55" transform="translate(305,22)">
+          {[0,60,120,180,240,300].map((a,i) => (
+            <ellipse key={i} cx={Math.cos(a*Math.PI/180)*18} cy={Math.sin(a*Math.PI/180)*18} rx="11" ry="18"
+              transform={`rotate(${a},${Math.cos(a*Math.PI/180)*18},${Math.sin(a*Math.PI/180)*18})`}
+              fill="hsl(270 55% 65%)" />
+          ))}
+          <circle cx="0" cy="0" r="8" fill="hsl(280 60% 80%)" />
+        </g>
+        {/* Medium green bloom — bottom left */}
+        <g opacity="0.5" transform="translate(42,118)">
+          {[0,72,144,216,288].map((a,i) => (
+            <ellipse key={i} cx={Math.cos(a*Math.PI/180)*14} cy={Math.sin(a*Math.PI/180)*14} rx="9" ry="15"
+              transform={`rotate(${a},${Math.cos(a*Math.PI/180)*14},${Math.sin(a*Math.PI/180)*14})`}
+              fill="hsl(145 50% 52%)" />
+          ))}
+          <circle cx="0" cy="0" r="6" fill="hsl(145 60% 75%)" />
+        </g>
+        {/* Small purple bloom — top left */}
+        <g opacity="0.4" transform="translate(22,28)">
+          {[0,60,120,180,240,300].map((a,i) => (
+            <ellipse key={i} cx={Math.cos(a*Math.PI/180)*10} cy={Math.sin(a*Math.PI/180)*10} rx="6" ry="11"
+              transform={`rotate(${a},${Math.cos(a*Math.PI/180)*10},${Math.sin(a*Math.PI/180)*10})`}
+              fill="hsl(280 55% 65%)" />
+          ))}
+          <circle cx="0" cy="0" r="5" fill="hsl(270 50% 82%)" />
+        </g>
+        {/* Small green bloom — bottom right */}
+        <g opacity="0.45" transform="translate(328,130)">
+          {[0,72,144,216,288].map((a,i) => (
+            <ellipse key={i} cx={Math.cos(a*Math.PI/180)*10} cy={Math.sin(a*Math.PI/180)*10} rx="6" ry="12"
+              transform={`rotate(${a},${Math.cos(a*Math.PI/180)*10},${Math.sin(a*Math.PI/180)*10})`}
+              fill="hsl(145 50% 48%)" />
+          ))}
+          <circle cx="0" cy="0" r="5" fill="hsl(145 55% 70%)" />
+        </g>
+        {/* Tiny scattered dots */}
+        {[[80,40],[160,20],[240,135],[190,145],[100,150]].map(([cx,cy],i) => (
+          <circle key={i} cx={cx} cy={cy} r="3.5" fill={i%2===0 ? "hsl(270 45% 70%)" : "hsl(145 45% 58%)"} opacity="0.35" />
+        ))}
+        {/* Stems */}
+        <path d="M305 40 Q298 80 290 120" stroke="hsl(145 50% 42%)" strokeWidth="1.5" fill="none" opacity="0.3" />
+        <path d="M42 104 Q50 80 60 55" stroke="hsl(145 50% 42%)" strokeWidth="1.5" fill="none" opacity="0.3" />
+      </svg>
+
+      {/* Content */}
+      <div className="relative px-5 py-5">
+        <p className="text-xs font-medium" style={{ color: "hsl(270 45% 45%)" }}>{greeting} ✦</p>
+        <h2 className="text-xl font-bold font-serif mt-0.5" style={{ color: "hsl(265 40% 30%)" }}>
+          How are you feeling today?
+        </h2>
+        <p className="text-sm mt-1" style={{ color: "hsl(265 30% 40%)" }}>
+          Track a new migraine or review your patterns below.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function WaterReminderCard() {
+  return (
+    <div className="flex items-center gap-3 rounded-xl px-4 py-3"
+      style={{ background: "linear-gradient(135deg, hsl(200 65% 94%), hsl(175 55% 90%))" }}>
+      <div className="flex-shrink-0 rounded-full p-2" style={{ background: "hsl(200 70% 80%)" }}>
+        <Droplets className="h-5 w-5" style={{ color: "hsl(200 80% 38%)" }} />
+      </div>
+      <div>
+        <p className="text-sm font-semibold" style={{ color: "hsl(200 70% 28%)" }}>
+          Drink more water 💧
+        </p>
+        <p className="text-xs" style={{ color: "hsl(200 50% 42%)" }}>
+          Dehydration is a top migraine trigger — aim for 8 glasses today.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function MigraineTracker() {
   const avgSeverity = (MOCK_ENTRIES.reduce((a, e) => a + e.severity, 0) / MOCK_ENTRIES.length).toFixed(1);
   const avgDuration = Math.round(MOCK_ENTRIES.reduce((a, e) => a + e.durationMin, 0) / MOCK_ENTRIES.length);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Migraine Tracker</h1>
-        <p className="text-muted-foreground">Your recent migraine history</p>
-      </div>
+    <div className="space-y-5">
+      <WelcomeBanner />
+      <WaterReminderCard />
 
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-3">
