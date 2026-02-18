@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Pill, Plus, Clock, Archive, ChevronDown, ChevronUp } from "lucide-react";
+import { Pill, Plus, Clock, Archive, ChevronDown, ChevronUp, X } from "lucide-react";
 
 const CLASSIFICATIONS = [
   "Migraine Prevention",
@@ -75,6 +75,10 @@ export default function MedicationTracker() {
   const logDose = (id: number) => {
     const now = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     setMeds(meds.map((m) => m.id === id ? { ...m, logs: [...m.logs, { time: now }] } : m));
+  };
+
+  const removeDose = (medId: number, doseIndex: number) => {
+    setMeds(meds.map((m) => m.id === medId ? { ...m, logs: m.logs.filter((_, i) => i !== doseIndex) } : m));
   };
 
   return (
@@ -167,17 +171,30 @@ export default function MedicationTracker() {
                 <Badge variant="outline" className={`text-xs ${classColor(med.classification)}`}>{med.classification}</Badge>
                 {med.frequency && <Badge variant="secondary" className="text-xs">{med.frequency}</Badge>}
               </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Clock className="h-3.5 w-3.5" />
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                   {med.logs.length > 0
-                    ? <span>Logged: {med.logs.map((l) => l.time).join(", ")}</span>
-                    : <span>No doses logged today</span>
+                    ? med.logs.map((l, i) => (
+                        <Badge key={i} variant="secondary" className="text-xs gap-1 pr-1">
+                          {l.time}
+                          <button
+                            onClick={() => removeDose(med.id, i)}
+                            className="ml-0.5 rounded-full hover:bg-destructive/20 hover:text-destructive transition-colors p-0.5"
+                            aria-label={`Remove dose at ${l.time}`}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))
+                    : <span className="text-xs text-muted-foreground">No doses logged today</span>
                   }
                 </div>
-                <Button size="sm" variant="outline" onClick={() => logDose(med.id)} className="text-xs h-7">
-                  Log Dose
-                </Button>
+                <div className="flex justify-end">
+                  <Button size="sm" variant="outline" onClick={() => logDose(med.id)} className="text-xs h-7">
+                    Log Dose
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
