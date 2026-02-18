@@ -1,8 +1,9 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, Calendar, Pill, ShieldCheck, Stethoscope, ClipboardList } from "lucide-react";
+import { Home, Calendar, Pill, ShieldCheck, ClipboardList, Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Brain } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const navItems = [
   { to: "/", icon: Home, label: "Home" },
@@ -15,6 +16,23 @@ const navItems = [
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
+  const [dark, setDark] = useState(() => {
+    if (typeof window !== "undefined") {
+      return document.documentElement.classList.contains("dark") ||
+        localStorage.getItem("theme") === "dark";
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    if (dark) {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+    }
+  }, [dark]);
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -29,6 +47,15 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               MyGraineGuide
             </span>
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setDark(d => !d)}
+            className="rounded-xl text-muted-foreground hover:text-foreground"
+            aria-label="Toggle dark mode"
+          >
+            {dark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          </Button>
         </div>
       </header>
 
