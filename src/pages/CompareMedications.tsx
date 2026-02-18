@@ -190,7 +190,7 @@ const MED_DB: Record<string, MedProfile> = {
   },
 };
 
-const ALL_MED_NAMES = Object.values(MED_DB).map((m) => m.name);
+const ALL_MEDS = Object.values(MED_DB);
 
 const ratingColor = (r: MedProfile["migraineRating"]) => {
   if (r === "first-line") return "bg-[hsl(var(--severity-low))]/15 text-[hsl(var(--severity-low))] border-[hsl(var(--severity-low))]/30";
@@ -205,6 +205,18 @@ const typeColor = (t: MedProfile["type"]) => {
   return "bg-muted text-muted-foreground";
 };
 
+function searchMeds(query: string): MedProfile[] {
+  const q = query.toLowerCase().trim();
+  if (!q) return ALL_MEDS;
+  return ALL_MEDS.filter(
+    (m) =>
+      m.name.toLowerCase().includes(q) ||
+      m.brandNames.some((b) => b.toLowerCase().includes(q)) ||
+      m.drugClass.toLowerCase().includes(q) ||
+      (m.genericName?.toLowerCase().includes(q) ?? false)
+  );
+}
+
 function lookupMed(name: string): MedProfile | null {
   const key = name.toLowerCase().replace(/\s+/g, "");
   return MED_DB[key] ?? Object.values(MED_DB).find(
@@ -212,6 +224,7 @@ function lookupMed(name: string): MedProfile | null {
            m.brandNames.some((b) => b.toLowerCase() === name.toLowerCase())
   ) ?? null;
 }
+
 
 function sharedInteractions(a: MedProfile, b: MedProfile): string[] {
   const aLower = a.interactsWith.map((x) => x.toLowerCase());
@@ -232,17 +245,21 @@ function sharedInteractions(a: MedProfile, b: MedProfile): string[] {
   return direct;
 }
 
-function MedSelector({ label, value, onSelect }: {
+function MedSelector({
+  label,
+  value,
+  onSelect,
+  excluding,
+}: {
   label: string;
   value: MedProfile | null;
   onSelect: (m: MedProfile | null) => void;
+  excluding?: MedProfile | null;
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
 
-  const results = query.length > 1
-    ? ALL_MED_NAMES.filter((n) => n.toLowerCase().includes(query.toLowerCase()))
-    : [];
+  const results = searchMeds(query).filter((m) => m.name !== excluding?.name);
 
   return (
     <div className="flex-1 space-y-1.5">
@@ -251,7 +268,7 @@ function MedSelector({ label, value, onSelect }: {
         <div className="rounded-xl border border-primary/25 bg-primary/5 p-3 space-y-1.5 relative">
           <button
             onClick={() => onSelect(null)}
-            className="absolute top-2 right-2 rounded-full p-0.5 hover:bg-muted"
+            className="absolute top-2 right-2 rounded-full p-0.5 hover:bg-muted transition-colors"
           >
             <X className="h-3.5 w-3.5 text-muted-foreground" />
           </button>
@@ -272,28 +289,33 @@ function MedSelector({ label, value, onSelect }: {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
-            placeholder="Search medication…"
+            placeholder="Search by name or brand…"
             value={query}
             onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
             onFocus={() => setOpen(true)}
+            onBlur={() => setTimeout(() => setOpen(false), 150)}
             className="pl-8 text-sm"
           />
-          {open && results.length > 0 && (
-            <div className="absolute z-10 top-full mt-1 w-full rounded-lg border border-border bg-card shadow-md overflow-hidden">
-              {results.map((name) => (
+          {open && (
+            <div className="absolute z-20 top-full mt-1 w-full rounded-xl border border-border bg-card shadow-lg overflow-hidden max-h-52 overflow-y-auto">
+              {results.length === 0 ? (
+                <p className="px-3 py-3 text-xs text-muted-foreground text-center">No medications found</p>
+              ) : results.map((m) => (
                 <button
-                  key={name}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors"
+                  key={m.name}
+                  className="w-full text-left px-3 py-2.5 text-sm hover:bg-muted transition-colors border-b border-border/30 last:border-0"
                   onMouseDown={(e) => {
                     e.preventDefault();
-                    const m = lookupMed(name);
-                    if (m) { onSelect(m); setQuery(""); setOpen(false); }
+                    onSelect(m);
+                    setQuery("");
+                    setOpen(false);
                   }}
                 >
-                  {name}
-                  <span className="text-[10px] text-muted-foreground ml-1.5">
-                    {lookupMed(name)?.drugClass}
-                  </span>
+                  <span className="font-medium">{m.name}</span>
+                  {m.brandNames.length > 0 && (
+                    <span className="text-[10px] text-muted-foreground ml-1.5">({m.brandNames[0]})</span>
+                  )}
+                  <div className="text-[10px] text-muted-foreground mt-0.5">{m.drugClass}</div>
                 </button>
               ))}
             </div>
@@ -311,10 +333,10 @@ function CompareRow({ label, a, b, highlight }: {
   highlight?: boolean;
 }) {
   return (
-    <div className={`grid grid-cols-[1fr_1fr] gap-3 py-3 border-b border-border/50 ${highlight ? "bg-[hsl(var(--warning))]/3" : ""}`}>
+    <div className={`grid grid-cols-2 gap-3 py-3 border-b border-border/50 last:border-0 ${highlight ? "bg-[hsl(var(--warning))]/3 -mx-1 px-1 rounded" : ""}`}>
       <div className="col-span-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground -mb-1">{label}</div>
-      <div className="text-xs text-foreground leading-relaxed">{a}</div>
-      <div className="text-xs text-foreground leading-relaxed">{b}</div>
+      <div className="text-xs text-foreground leading-relaxed">{a ?? <span className="text-muted-foreground">—</span>}</div>
+      <div className="text-xs text-foreground leading-relaxed">{b ?? <span className="text-muted-foreground">—</span>}</div>
     </div>
   );
 }
@@ -331,33 +353,161 @@ function TagList({ items, color }: { items: string[]; color?: string }) {
   );
 }
 
+/** Single medication detail card shown when only one is selected */
+function MedDetailCard({ med }: { med: MedProfile }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <Card className="overflow-hidden">
+      <CardContent className="p-4 space-y-3">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="font-bold text-base font-serif">{med.name}</p>
+            {med.brandNames.length > 0 && (
+              <p className="text-xs text-muted-foreground">{med.brandNames.join(", ")}</p>
+            )}
+            <p className="text-xs text-muted-foreground mt-0.5">{med.drugClass}</p>
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            <Badge variant="outline" className={`text-[10px] ${typeColor(med.type)}`}>{med.type}</Badge>
+            <Badge variant="outline" className={`text-[10px] ${ratingColor(med.migraineRating)}`}>{med.migraineRating}</Badge>
+          </div>
+        </div>
+
+        <div className="space-y-2 text-xs">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">How it works</p>
+            <p className="leading-relaxed">{med.mechanism}</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">Migraine use</p>
+            <p className="leading-relaxed">{med.migraineUse}</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">Dosing</p>
+              <p className="leading-relaxed">{med.dosing}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">Onset</p>
+              <p className="font-medium">{med.onset}</p>
+            </div>
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Side effects</p>
+            <TagList items={med.sideEffects} color="bg-destructive/8 text-destructive/80 border-destructive/15" />
+          </div>
+        </div>
+
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="w-full flex items-center justify-center gap-1.5 pt-2 text-xs text-primary border-t border-border/40"
+        >
+          {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          {expanded ? "Hide" : "Show"} warnings, interactions & pregnancy safety
+        </button>
+
+        {expanded && (
+          <div className="space-y-2 text-xs pt-1">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Warnings</p>
+              <TagList items={med.warnings} color="bg-[hsl(var(--warning))]/8 text-[hsl(var(--warning))]/90 border-[hsl(var(--warning))]/20" />
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Contraindications</p>
+              <TagList items={med.contraindications} />
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Interacts with</p>
+              <TagList items={med.interactsWith} />
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">Pregnancy</p>
+              <p className="leading-relaxed">{med.pregnancy}</p>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function CompareMedications() {
   const [medA, setMedA] = useState<MedProfile | null>(null);
   const [medB, setMedB] = useState<MedProfile | null>(null);
+  const [comparing, setComparing] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
 
   const interactions = medA && medB ? sharedInteractions(medA, medB) : [];
   const sameClass = medA && medB && medA.drugClass === medB.drugClass;
+  const bothSelected = !!medA && !!medB;
+  const showComparison = bothSelected && comparing;
+
+  const handleCompare = () => {
+    if (bothSelected) setComparing(true);
+  };
+
+  const handleReset = () => {
+    setMedA(null);
+    setMedB(null);
+    setComparing(false);
+    setShowDetails(false);
+  };
+
+  const quickPick = (a: string, b: string) => {
+    setMedA(lookupMed(a));
+    setMedB(lookupMed(b));
+    setComparing(true);
+    setShowDetails(false);
+  };
 
   return (
     <div className="space-y-5">
       <p className="text-sm text-muted-foreground">
-        Select two medications to compare their profiles, side effects, and interactions side-by-side.
+        Search any medication to view its profile, or select two to compare side-by-side.
       </p>
 
-      {/* Selectors */}
+      {/* Search slots */}
       <div className="flex gap-3 items-start">
-        <MedSelector label="Medication A" value={medA} onSelect={setMedA} />
-        <div className="pt-7 shrink-0">
-          <GitCompareArrows className="h-5 w-5 text-muted-foreground" />
+        <MedSelector
+          label="Medication A"
+          value={medA}
+          onSelect={(m) => { setMedA(m); setComparing(false); }}
+          excluding={medB}
+        />
+        <div className="pt-7 shrink-0 text-muted-foreground">
+          <GitCompareArrows className="h-5 w-5" />
         </div>
-        <MedSelector label="Medication B" value={medB} onSelect={setMedB} />
+        <MedSelector
+          label="Medication B (optional)"
+          value={medB}
+          onSelect={(m) => { setMedB(m); setComparing(false); }}
+          excluding={medA}
+        />
       </div>
 
-      {/* Quick picks */}
-      {(!medA || !medB) && (
+      {/* Action buttons */}
+      {medA && (
+        <div className="flex gap-2">
+          {bothSelected && (
+            <Button
+              className="flex-1 flex items-center gap-2"
+              onClick={handleCompare}
+              disabled={showComparison}
+            >
+              <GitCompareArrows className="h-4 w-4" />
+              {showComparison ? "Comparing…" : "Compare"}
+            </Button>
+          )}
+          <Button variant="outline" className="flex items-center gap-2" onClick={handleReset}>
+            <X className="h-4 w-4" /> Clear
+          </Button>
+        </div>
+      )}
+
+      {/* Quick compare presets */}
+      {!medA && !medB && (
         <div className="space-y-2">
-          <p className="text-xs text-muted-foreground">Quick compare:</p>
+          <p className="text-xs text-muted-foreground font-medium">Quick compare:</p>
           <div className="flex flex-wrap gap-1.5">
             {[
               ["Sumatriptan", "Rizatriptan"],
@@ -365,11 +515,13 @@ export default function CompareMedications() {
               ["Topiramate", "Propranolol"],
               ["Ibuprofen", "Naproxen"],
               ["Amitriptyline", "Topiramate"],
+              ["Rimegepant", "Ubrogepant"],
+              ["Erenumab", "Topiramate"],
             ].map(([a, b]) => (
               <button
                 key={`${a}-${b}`}
-                onClick={() => { setMedA(lookupMed(a)); setMedB(lookupMed(b)); }}
-                className="text-xs rounded-full border border-border px-3 py-1.5 hover:bg-muted transition-colors"
+                onClick={() => quickPick(a, b)}
+                className="text-xs rounded-full border border-border bg-card px-3 py-1.5 hover:bg-primary/5 hover:border-primary/30 transition-all"
               >
                 {a} vs {b}
               </button>
@@ -378,13 +530,24 @@ export default function CompareMedications() {
         </div>
       )}
 
-      {/* Comparison output */}
-      {medA && medB && (
+      {/* Single medication detail (only A selected, no compare yet) */}
+      {medA && !showComparison && (
+        <div className="space-y-3">
+          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+            {medB ? "Select both medications, then tap Compare" : "Medication profile"}
+          </p>
+          <MedDetailCard med={medA} />
+          {medB && <MedDetailCard med={medB} />}
+        </div>
+      )}
+
+      {/* Full comparison */}
+      {showComparison && medA && medB && (
         <div className="space-y-4">
-          {/* Header comparison */}
+          {/* Header card */}
           <Card>
-            <CardContent className="p-4">
-              <div className="grid grid-cols-2 gap-3 mb-3">
+            <CardContent className="p-4 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
                 {[medA, medB].map((med) => (
                   <div key={med.name} className="space-y-1.5">
                     <p className="font-semibold text-sm">{med.name}</p>
@@ -397,7 +560,6 @@ export default function CompareMedications() {
                 ))}
               </div>
 
-              {/* Interaction alert */}
               {interactions.length > 0 && (
                 <div className="rounded-lg bg-destructive/8 border border-destructive/25 p-3 space-y-1.5">
                   <p className="text-xs font-semibold flex items-center gap-1.5 text-destructive">
@@ -410,20 +572,20 @@ export default function CompareMedications() {
               )}
 
               {sameClass && (
-                <div className="rounded-lg bg-[hsl(var(--warning))]/8 border border-[hsl(var(--warning))]/25 p-3 mt-2">
+                <div className="rounded-lg bg-[hsl(var(--warning))]/8 border border-[hsl(var(--warning))]/25 p-3">
                   <p className="text-xs font-semibold flex items-center gap-1.5 text-[hsl(var(--warning))]">
                     <AlertTriangle className="h-3.5 w-3.5" /> Same Drug Class
                   </p>
                   <p className="text-xs text-[hsl(var(--warning))]/90 mt-0.5 leading-relaxed">
-                    Both belong to the <strong>{medA.drugClass}</strong> class. Generally should not be combined — discuss with your prescriber before switching or adding one to the other.
+                    Both belong to <strong>{medA.drugClass}</strong>. Discuss with your prescriber before combining or switching.
                   </p>
                 </div>
               )}
 
               {interactions.length === 0 && !sameClass && (
-                <div className="flex items-center gap-2 text-xs text-[hsl(var(--severity-low))] mt-1">
+                <div className="flex items-center gap-2 text-xs text-[hsl(var(--severity-low))]">
                   <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                  No direct interaction flagged between these two medications in our database.
+                  No direct interaction flagged between these two medications.
                 </div>
               )}
             </CardContent>
@@ -436,33 +598,15 @@ export default function CompareMedications() {
                 <Activity className="h-4 w-4 text-primary" /> Side-by-Side Comparison
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-4 pt-0 space-y-0">
-              {/* Column headers */}
+            <CardContent className="p-4 pt-0">
               <div className="grid grid-cols-2 gap-3 pb-2 border-b border-border mb-1">
                 <p className="text-xs font-bold">{medA.name}</p>
                 <p className="text-xs font-bold">{medB.name}</p>
               </div>
-
-              <CompareRow
-                label="How it works"
-                a={medA.mechanism}
-                b={medB.mechanism}
-              />
-              <CompareRow
-                label="Migraine use"
-                a={medA.migraineUse}
-                b={medB.migraineUse}
-              />
-              <CompareRow
-                label="Dosing"
-                a={medA.dosing}
-                b={medB.dosing}
-              />
-              <CompareRow
-                label="Onset of action"
-                a={<span className="font-medium">{medA.onset}</span>}
-                b={<span className="font-medium">{medB.onset}</span>}
-              />
+              <CompareRow label="How it works" a={medA.mechanism} b={medB.mechanism} />
+              <CompareRow label="Migraine use" a={medA.migraineUse} b={medB.migraineUse} />
+              <CompareRow label="Dosing" a={medA.dosing} b={medB.dosing} />
+              <CompareRow label="Onset" a={<span className="font-medium">{medA.onset}</span>} b={<span className="font-medium">{medB.onset}</span>} />
               <CompareRow
                 label="Common side effects"
                 a={<TagList items={medA.sideEffects} color="bg-destructive/8 text-destructive/80 border-destructive/15" />}
@@ -485,28 +629,15 @@ export default function CompareMedications() {
                     b={<TagList items={medB.warnings} color="bg-[hsl(var(--warning))]/8 text-[hsl(var(--warning))]/90 border-[hsl(var(--warning))]/20" />}
                     highlight
                   />
-                  <CompareRow
-                    label="Contraindications"
-                    a={<TagList items={medA.contraindications} />}
-                    b={<TagList items={medB.contraindications} />}
-                  />
-                  <CompareRow
-                    label="Interacts with"
-                    a={<TagList items={medA.interactsWith} />}
-                    b={<TagList items={medB.interactsWith} />}
-                  />
-                  <CompareRow
-                    label="Pregnancy"
-                    a={medA.pregnancy}
-                    b={medB.pregnancy}
-                    highlight
-                  />
+                  <CompareRow label="Contraindications" a={<TagList items={medA.contraindications} />} b={<TagList items={medB.contraindications} />} />
+                  <CompareRow label="Interacts with" a={<TagList items={medA.interactsWith} />} b={<TagList items={medB.interactsWith} />} />
+                  <CompareRow label="Pregnancy" a={medA.pregnancy} b={medB.pregnancy} highlight />
                 </>
               )}
             </CardContent>
           </Card>
 
-          {/* Migraine rating */}
+          {/* Rating */}
           <Card>
             <CardContent className="p-4 space-y-3">
               <p className="text-xs font-semibold flex items-center gap-1.5">
@@ -523,13 +654,13 @@ export default function CompareMedications() {
             </CardContent>
           </Card>
 
-          {/* Disclaimer */}
           <div className="flex items-start gap-2 text-[10px] text-muted-foreground px-1">
             <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-            <p>This comparison is for educational purposes only and is not a substitute for advice from your prescriber or pharmacist. Always consult a healthcare professional before starting, stopping, or combining medications.</p>
+            <p>For educational purposes only. Always consult your prescriber or pharmacist before starting, stopping, or combining medications.</p>
           </div>
         </div>
       )}
     </div>
   );
 }
+
