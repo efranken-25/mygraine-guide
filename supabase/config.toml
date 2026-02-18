@@ -1,1 +1,4 @@
 project_id = "vcfbvwnyxasntgpahnmh"
+
+[functions.drug-lookup]
+verify_jwt = false
