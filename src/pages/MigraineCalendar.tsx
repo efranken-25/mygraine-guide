@@ -3,26 +3,69 @@ import { format, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval, getDay,
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, ChevronLeft, ChevronRight, Plus, Brain } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, Brain, Clock, Droplets, Wind, Pill } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type MigraineDay = {
   date: Date;
   severity: number;
-  duration: string;
+  durationMin: number;
+  area: string;
+  medication: string;
+  weather: string;
+  stressLevel: string;
+  caffeinesMg: number;
+  waterMl: number;
+  sleepHours: number;
+  skippedMeals: boolean;
   notes: string;
+  triggers: string[];
 };
 
-const MOCK_MIGRAINE_DAYS: MigraineDay[] = [
-  { date: new Date(2026, 1, 16), severity: 8, duration: "4h 20m", notes: "Aura, nausea" },
-  { date: new Date(2026, 1, 14), severity: 5, duration: "2h 10m", notes: "Neck pain" },
-  { date: new Date(2026, 1, 11), severity: 9, duration: "6h 45m", notes: "Severe with vomiting" },
-  { date: new Date(2026, 1, 8), severity: 3, duration: "1h 15m", notes: "Mild eye pain" },
-  { date: new Date(2026, 1, 5), severity: 7, duration: "3h 30m", notes: "Nausea, brain fog" },
-  { date: new Date(2026, 0, 28), severity: 6, duration: "3h", notes: "Light sensitivity" },
-  { date: new Date(2026, 0, 20), severity: 4, duration: "1h 50m", notes: "Mild" },
-  { date: new Date(2026, 0, 12), severity: 8, duration: "5h", notes: "Aura, sound sensitivity" },
+// Derived from uploaded MigrainTracker_dummy_data.xlsx — migraine days only (had_migraine = yes)
+const MIGRAINE_DATA: MigraineDay[] = [
+  // February
+  { date: new Date(2026, 1, 1),  severity: 7,  durationMin: 165, area: "Right Temporal",    medication: "Sumatriptan",   weather: "Cloudy",       stressLevel: "High",      caffeinesMg: 120, waterMl: 1800, sleepHours: 6.0, skippedMeals: false, notes: "Woke up tired; late coffee",          triggers: ["Poor Sleep", "Caffeine", "Stress"] },
+  { date: new Date(2026, 1, 2),  severity: 9,  durationMin: 135, area: "Left Orbital",      medication: "Ibuprofen",     weather: "Rain",         stressLevel: "Very High", caffeinesMg: 0,   waterMl: 1000, sleepHours: 4.5, skippedMeals: true,  notes: "Skipped breakfast; long screen time", triggers: ["Skipped Meal", "Dehydration", "Poor Sleep", "Screen Time", "Rain/Pressure"] },
+  { date: new Date(2026, 1, 4),  severity: 5,  durationMin: 165, area: "Bifrontal",         medication: "None",          weather: "Overcast",     stressLevel: "Moderate",  caffeinesMg: 80,  waterMl: 1600, sleepHours: 5.0, skippedMeals: false, notes: "Woke early for work; mild stress",    triggers: ["Poor Sleep", "Stress"] },
+  { date: new Date(2026, 1, 5),  severity: 8,  durationMin: 165, area: "Occipital",         medication: "Sumatriptan",   weather: "Storm",        stressLevel: "High",      caffeinesMg: 150, waterMl: 1400, sleepHours: 5.5, skippedMeals: true,  notes: "Loud office; storm outside",          triggers: ["Weather/Storm", "Skipped Meal", "Noise", "Caffeine"] },
+  { date: new Date(2026, 1, 7),  severity: 6,  durationMin: 100, area: "Fronto-Temporal",   medication: "Acetaminophen", weather: "Cloudy",       stressLevel: "Moderate",  caffeinesMg: 90,  waterMl: 1500, sleepHours: 6.5, skippedMeals: false, notes: "Headache after late night coding",    triggers: ["Screen Time", "Stress"] },
+  { date: new Date(2026, 1, 9),  severity: 4,  durationMin: 90,  area: "Vertex",            medication: "None",          weather: "Rain",         stressLevel: "High",      caffeinesMg: 50,  waterMl: 1700, sleepHours: 5.0, skippedMeals: false, notes: "Work deadline; light nausea",         triggers: ["Stress", "Rain/Pressure", "Poor Sleep"] },
+  { date: new Date(2026, 1, 10), severity: 8,  durationMin: 90,  area: "Right Occipital",   medication: "Sumatriptan",   weather: "Storm",        stressLevel: "Very High", caffeinesMg: 200, waterMl: 1400, sleepHours: 4.0, skippedMeals: true,  notes: "Major stress at work; loud environment", triggers: ["Stress", "Weather/Storm", "Skipped Meal", "Caffeine", "Poor Sleep", "Noise"] },
+  { date: new Date(2026, 1, 12), severity: 5,  durationMin: 140, area: "Bifrontal",         medication: "Ibuprofen",     weather: "Overcast",     stressLevel: "Moderate",  caffeinesMg: 80,  waterMl: 1600, sleepHours: 5.5, skippedMeals: false, notes: "Early meeting; mild cramps",          triggers: ["Poor Sleep", "Hormonal/Menstrual"] },
+  { date: new Date(2026, 1, 13), severity: 7,  durationMin: 155, area: "Left Temporal",     medication: "Sumatriptan",   weather: "Rain",         stressLevel: "High",      caffeinesMg: 160, waterMl: 1300, sleepHours: 5.0, skippedMeals: true,  notes: "Skipped lunch; high screen time",     triggers: ["Skipped Meal", "Rain/Pressure", "Screen Time", "Caffeine", "Hormonal/Menstrual"] },
+  { date: new Date(2026, 1, 15), severity: 6,  durationMin: 140, area: "Frontal",           medication: "None",          weather: "Cloudy",       stressLevel: "Moderate",  caffeinesMg: 110, waterMl: 1700, sleepHours: 6.0, skippedMeals: false, notes: "Headache after long meeting",         triggers: ["Stress", "Screen Time"] },
+  { date: new Date(2026, 1, 16), severity: 5,  durationMin: 90,  area: "Temporal Band",     medication: "Acetaminophen", weather: "Clear",        stressLevel: "Moderate",  caffeinesMg: 180, waterMl: 1500, sleepHours: 6.5, skippedMeals: false, notes: "Evening screen time; bright room",    triggers: ["Screen Time", "Bright Light", "Caffeine"] },
+  { date: new Date(2026, 1, 18), severity: 8,  durationMin: 150, area: "Right Periorbital", medication: "Sumatriptan",   weather: "Rain",         stressLevel: "Very High", caffeinesMg: 70,  waterMl: 1500, sleepHours: 4.5, skippedMeals: true,  notes: "Severe stress; skipped breakfast",    triggers: ["Stress", "Skipped Meal", "Rain/Pressure", "Poor Sleep", "Hormonal/Menstrual"] },
+  { date: new Date(2026, 1, 19), severity: 3,  durationMin: 90,  area: "Bifrontal",         medication: "None",          weather: "Overcast",     stressLevel: "Mild",      caffeinesMg: 90,  waterMl: 1800, sleepHours: 7.0, skippedMeals: false, notes: "Mild headache; resolved with rest",   triggers: ["Hormonal/Menstrual"] },
+  // March
+  { date: new Date(2026, 2, 2),  severity: 6,  durationMin: 51,  area: "Periorbital",       medication: "Frovatriptan",  weather: "Light Rain",   stressLevel: "Mild",      caffeinesMg: 139, waterMl: 2115, sleepHours: 8.6, skippedMeals: false, notes: "Busy day but felt okay",              triggers: ["Hormonal/Menstrual", "Caffeine"] },
+  { date: new Date(2026, 2, 3),  severity: 4,  durationMin: 193, area: "Left Temporal",     medication: "Topiramate",    weather: "Overcast",     stressLevel: "High",      caffeinesMg: 88,  waterMl: 2353, sleepHours: 6.5, skippedMeals: false, notes: "Household chores most of day",        triggers: ["Stress"] },
+  { date: new Date(2026, 2, 4),  severity: 10, durationMin: 219, area: "Frontal",           medication: "Ibuprofen",     weather: "Cloudy",       stressLevel: "Mild",      caffeinesMg: 6,   waterMl: 1505, sleepHours: 8.4, skippedMeals: false, notes: "Slept late; early alarm disrupted",  triggers: ["Disrupted Sleep", "Dehydration"] },
+  { date: new Date(2026, 2, 6),  severity: 3,  durationMin: 81,  area: "Bifrontal",         medication: "Excedrin",      weather: "Snow",         stressLevel: "Moderate",  caffeinesMg: 116, waterMl: 2269, sleepHours: 5.9, skippedMeals: false, notes: "Meetings in bright room",             triggers: ["Bright Light", "Stress"] },
+  { date: new Date(2026, 2, 7),  severity: 7,  durationMin: 135, area: "Right Orbital",     medication: "Naproxen",      weather: "Foggy",        stressLevel: "Very High", caffeinesMg: 249, waterMl: 2473, sleepHours: 4.2, skippedMeals: false, notes: "Long coding session; forgot breaks",  triggers: ["Screen Time", "Caffeine", "Poor Sleep"] },
+  { date: new Date(2026, 2, 8),  severity: 9,  durationMin: 51,  area: "Vertex",            medication: "Ibuprofen",     weather: "Snow",         stressLevel: "Very High", caffeinesMg: 260, waterMl: 1620, sleepHours: 5.9, skippedMeals: false, notes: "Travel day; irregular meals",         triggers: ["Travel", "Caffeine", "Stress", "Weather/Storm"] },
+  { date: new Date(2026, 2, 9),  severity: 8,  durationMin: 173, area: "Left Temporal",     medication: "Naproxen",      weather: "Foggy",        stressLevel: "Moderate",  caffeinesMg: 168, waterMl: 2741, sleepHours: 6.9, skippedMeals: false, notes: "Outdoor walk; low phone use",         triggers: ["Barometric Pressure", "Caffeine"] },
+  { date: new Date(2026, 2, 12), severity: 5,  durationMin: 136, area: "Occipital",         medication: "Sumatriptan",   weather: "Partly Cloudy",stressLevel: "Moderate",  caffeinesMg: 24,  waterMl: 1797, sleepHours: 5.1, skippedMeals: false, notes: "Gym in morning; hydrated well",       triggers: ["Poor Sleep", "Hormonal/Menstrual"] },
+  { date: new Date(2026, 2, 13), severity: 9,  durationMin: 82,  area: "Frontal",           medication: "Sumatriptan",   weather: "Thunderstorm", stressLevel: "Very High", caffeinesMg: 13,  waterMl: 1756, sleepHours: 4.4, skippedMeals: true,  notes: "Argued with colleague; thunderstorm", triggers: ["Stress", "Weather/Storm", "Skipped Meal", "Poor Sleep", "Hormonal/Menstrual"] },
+  { date: new Date(2026, 2, 15), severity: 3,  durationMin: 61,  area: "Right Parietal",    medication: "Acetaminophen", weather: "Light Rain",   stressLevel: "Moderate",  caffeinesMg: 177, waterMl: 2054, sleepHours: 4.6, skippedMeals: true,  notes: "Travel day; irregular meals",         triggers: ["Travel", "Skipped Meal", "Poor Sleep", "Hormonal/Menstrual"] },
+  { date: new Date(2026, 2, 17), severity: 5,  durationMin: 49,  area: "Right Temporal",    medication: "Topiramate",    weather: "Light Rain",   stressLevel: "Mild",      caffeinesMg: 201, waterMl: 1967, sleepHours: 7.3, skippedMeals: false, notes: "Busy day but felt okay",              triggers: ["Caffeine", "Rain/Pressure"] },
+  { date: new Date(2026, 2, 18), severity: 9,  durationMin: 129, area: "Bilateral Temporal",medication: "Zolmitriptan",  weather: "Storm",        stressLevel: "Very High", caffeinesMg: 235, waterMl: 2669, sleepHours: 7.6, skippedMeals: true,  notes: "Travel day; irregular meals",         triggers: ["Weather/Storm", "Travel", "Skipped Meal", "Caffeine", "Stress"] },
+  { date: new Date(2026, 2, 20), severity: 6,  durationMin: 151, area: "Periorbital",       medication: "Rizatriptan",   weather: "Snow",         stressLevel: "Moderate",  caffeinesMg: 225, waterMl: 2274, sleepHours: 8.1, skippedMeals: true,  notes: "Travel day; irregular meals",         triggers: ["Travel", "Skipped Meal", "Caffeine"] },
+  { date: new Date(2026, 2, 21), severity: 7,  durationMin: 149, area: "Right Orbital",     medication: "Ibuprofen",     weather: "Clear",        stressLevel: "High",      caffeinesMg: 94,  waterMl: 1710, sleepHours: 7.3, skippedMeals: true,  notes: "Lots of meetings in bright room",     triggers: ["Bright Light", "Skipped Meal", "Hormonal/Menstrual"] },
+  { date: new Date(2026, 2, 23), severity: 7,  durationMin: 193, area: "Left Orbital",      medication: "Ibuprofen",     weather: "Cloudy",       stressLevel: "Moderate",  caffeinesMg: 160, waterMl: 1641, sleepHours: 6.0, skippedMeals: false, notes: "Long coding session; forgot breaks",  triggers: ["Screen Time", "Caffeine", "Hormonal/Menstrual"] },
+  { date: new Date(2026, 2, 24), severity: 8,  durationMin: 66,  area: "Occipital",         medication: "Rizatriptan",   weather: "Light Rain",   stressLevel: "Very High", caffeinesMg: 224, waterMl: 1453, sleepHours: 4.4, skippedMeals: false, notes: "Travel day; irregular meals",         triggers: ["Travel", "Caffeine", "Poor Sleep", "Rain/Pressure"] },
+  { date: new Date(2026, 2, 26), severity: 10, durationMin: 213, area: "Periorbital",       medication: "Eletriptan",    weather: "Cloudy",       stressLevel: "Very High", caffeinesMg: 151, waterMl: 2467, sleepHours: 6.7, skippedMeals: false, notes: "Travel day; irregular meals",         triggers: ["Travel", "Stress", "Caffeine"] },
+  { date: new Date(2026, 2, 27), severity: 3,  durationMin: 48,  area: "Left Temporal",     medication: "Naproxen",      weather: "Light Rain",   stressLevel: "High",      caffeinesMg: 243, waterMl: 2064, sleepHours: 5.1, skippedMeals: true,  notes: "Long coding session; forgot breaks",  triggers: ["Caffeine", "Skipped Meal", "Poor Sleep", "Screen Time"] },
 ];
+
+function minToHm(min: number): string {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
+}
 
 function severityDot(s: number) {
   if (s <= 3) return "bg-[hsl(var(--severity-low))]";
@@ -36,33 +79,28 @@ function severityLabel(s: number) {
   return "Severe";
 }
 
+function severityTextColor(s: number) {
+  if (s <= 3) return "text-[hsl(var(--severity-low))]";
+  if (s <= 6) return "text-[hsl(var(--severity-mid))]";
+  return "text-[hsl(var(--severity-high))]";
+}
+
 export default function MigraineCalendar() {
   const [currentMonth, setCurrentMonth] = useState(new Date(2026, 1, 1));
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
-  const [migraineDays, setMigraineDays] = useState<MigraineDay[]>(MOCK_MIGRAINE_DAYS);
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
   const startDayOfWeek = getDay(monthStart);
 
-  const getMigraineForDay = (day: Date) => migraineDays.find((m) => isSameDay(m.date, day));
+  const getMigraineForDay = (day: Date) => MIGRAINE_DATA.find((m) => isSameDay(m.date, day));
 
-  const monthMigraines = migraineDays.filter(
-    (m) => m.date >= monthStart && m.date <= monthEnd
-  );
+  const monthMigraines = MIGRAINE_DATA.filter((m) => m.date >= monthStart && m.date <= monthEnd);
 
-  const toggleMigraineDay = (day: Date) => {
-    const existing = getMigraineForDay(day);
-    if (existing) {
-      setMigraineDays(migraineDays.filter((m) => !isSameDay(m.date, day)));
-      if (selectedDay && isSameDay(selectedDay, day)) setSelectedDay(null);
-    } else {
-      const newEntry: MigraineDay = { date: day, severity: 5, duration: "", notes: "" };
-      setMigraineDays([...migraineDays, newEntry]);
-      setSelectedDay(day);
-    }
-  };
+  const avgSeverity = monthMigraines.length
+    ? (monthMigraines.reduce((a, m) => a + m.severity, 0) / monthMigraines.length).toFixed(1)
+    : "—";
 
   const selectedMigraine = selectedDay ? getMigraineForDay(selectedDay) : null;
 
@@ -70,7 +108,7 @@ export default function MigraineCalendar() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Migraine Calendar</h1>
-        <p className="text-muted-foreground">Tap days to mark migraines</p>
+        <p className="text-muted-foreground">Tap a day to view details</p>
       </div>
 
       {/* Month stats */}
@@ -83,19 +121,13 @@ export default function MigraineCalendar() {
         </Card>
         <Card>
           <CardContent className="pt-4 pb-3 text-center">
-            <p className="text-2xl font-bold font-serif">
-              {monthMigraines.length > 0
-                ? (monthMigraines.reduce((a, m) => a + m.severity, 0) / monthMigraines.length).toFixed(1)
-                : "—"}
-            </p>
+            <p className="text-2xl font-bold font-serif">{avgSeverity}</p>
             <p className="text-xs text-muted-foreground">Avg severity</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4 pb-3 text-center">
-            <p className="text-2xl font-bold font-serif">
-              {daysInMonth.length - monthMigraines.length}
-            </p>
+            <p className="text-2xl font-bold font-serif">{daysInMonth.length - monthMigraines.length}</p>
             <p className="text-xs text-muted-foreground">Clear days</p>
           </CardContent>
         </Card>
@@ -115,17 +147,13 @@ export default function MigraineCalendar() {
           </div>
         </CardHeader>
         <CardContent>
-          {/* Day headers */}
           <div className="grid grid-cols-7 gap-1 mb-1">
             {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
               <div key={d} className="text-center text-[10px] font-medium text-muted-foreground py-1">{d}</div>
             ))}
           </div>
-          {/* Day cells */}
           <div className="grid grid-cols-7 gap-1">
-            {Array.from({ length: startDayOfWeek }).map((_, i) => (
-              <div key={`empty-${i}`} />
-            ))}
+            {Array.from({ length: startDayOfWeek }).map((_, i) => <div key={`empty-${i}`} />)}
             {daysInMonth.map((day) => {
               const migraine = getMigraineForDay(day);
               const isSelected = selectedDay && isSameDay(selectedDay, day);
@@ -133,21 +161,15 @@ export default function MigraineCalendar() {
               return (
                 <button
                   key={day.toISOString()}
-                  onClick={() => {
-                    if (migraine) {
-                      setSelectedDay(isSelected ? null : day);
-                    } else {
-                      toggleMigraineDay(day);
-                    }
-                  }}
+                  onClick={() => setSelectedDay(isSelected ? null : day)}
                   className={cn(
                     "relative flex flex-col items-center justify-center rounded-lg py-2 text-sm transition-all",
                     isSelected && "ring-2 ring-primary",
                     isToday && !migraine && "bg-muted font-bold",
-                    migraine ? "bg-destructive/10 hover:bg-destructive/20" : "hover:bg-muted",
+                    migraine ? "bg-destructive/10 hover:bg-destructive/20 cursor-pointer" : "hover:bg-muted/50 cursor-default",
                   )}
                 >
-                  <span className={cn("leading-none", migraine && "font-semibold")}>
+                  <span className={cn("leading-none text-xs", migraine && "font-semibold")}>
                     {format(day, "d")}
                   </span>
                   {migraine && (
@@ -157,8 +179,6 @@ export default function MigraineCalendar() {
               );
             })}
           </div>
-
-          {/* Legend */}
           <div className="flex items-center justify-center gap-4 mt-4 pt-3 border-t">
             <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
               <span className="h-2 w-2 rounded-full bg-[hsl(var(--severity-low))]" /> Mild
@@ -175,12 +195,13 @@ export default function MigraineCalendar() {
 
       {/* Selected day detail */}
       {selectedMigraine && selectedDay && (
-        <Card className="border-destructive/20 bg-destructive/5">
-          <CardContent className="p-4 space-y-2">
+        <Card className="border-destructive/20">
+          <CardContent className="p-4 space-y-3">
+            {/* Header */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Brain className="h-4 w-4 text-destructive" />
-                <span className="font-medium">{format(selectedDay, "EEEE, MMM d")}</span>
+                <span className="font-semibold">{format(selectedDay, "EEEE, MMM d")}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Badge variant="outline" className="text-xs">{severityLabel(selectedMigraine.severity)}</Badge>
@@ -189,28 +210,76 @@ export default function MigraineCalendar() {
                 </span>
               </div>
             </div>
-            {selectedMigraine.duration && (
-              <p className="text-sm text-muted-foreground">Duration: {selectedMigraine.duration}</p>
+
+            {/* Quick stats */}
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              <div className="bg-muted/40 rounded-lg p-2 text-center">
+                <Clock className="h-3.5 w-3.5 mx-auto mb-0.5 text-muted-foreground" />
+                <p className="font-medium">{minToHm(selectedMigraine.durationMin)}</p>
+                <p className="text-muted-foreground text-[10px]">Duration</p>
+              </div>
+              <div className="bg-muted/40 rounded-lg p-2 text-center">
+                <Droplets className="h-3.5 w-3.5 mx-auto mb-0.5 text-muted-foreground" />
+                <p className="font-medium">{(selectedMigraine.waterMl / 1000).toFixed(1)}L</p>
+                <p className="text-muted-foreground text-[10px]">Water</p>
+              </div>
+              <div className="bg-muted/40 rounded-lg p-2 text-center">
+                <Wind className="h-3.5 w-3.5 mx-auto mb-0.5 text-muted-foreground" />
+                <p className="font-medium">{selectedMigraine.weather}</p>
+                <p className="text-muted-foreground text-[10px]">Weather</p>
+              </div>
+            </div>
+
+            {/* Location & med */}
+            <div className="flex flex-wrap gap-1.5 text-xs">
+              <Badge variant="secondary">{selectedMigraine.area}</Badge>
+              <Badge variant="secondary" className={`capitalize ${selectedMigraine.stressLevel === "Very High" || selectedMigraine.stressLevel === "High" ? "bg-destructive/10 text-destructive border-destructive/20" : ""}`}>
+                Stress: {selectedMigraine.stressLevel}
+              </Badge>
+              <Badge variant="secondary">Sleep: {selectedMigraine.sleepHours}h</Badge>
+              <Badge variant="secondary">Caffeine: {selectedMigraine.caffeinesMg}mg</Badge>
+              {selectedMigraine.skippedMeals && (
+                <Badge variant="outline" className="text-[hsl(var(--warning))] border-[hsl(var(--warning))]/30 bg-[hsl(var(--warning))]/10">Skipped Meal</Badge>
+              )}
+            </div>
+
+            {/* Triggers */}
+            {selectedMigraine.triggers.length > 0 && (
+              <div>
+                <p className="text-[10px] text-muted-foreground mb-1.5 font-medium uppercase tracking-wide">Identified Triggers</p>
+                <div className="flex flex-wrap gap-1">
+                  {selectedMigraine.triggers.map((t) => (
+                    <Badge key={t} variant="outline" className="text-xs text-destructive border-destructive/30 bg-destructive/5">{t}</Badge>
+                  ))}
+                </div>
+              </div>
             )}
+
+            {/* Medication */}
+            {selectedMigraine.medication && selectedMigraine.medication !== "None" && (
+              <div className="flex items-center gap-1.5 pt-1 border-t border-border/50">
+                <Pill className="h-3 w-3 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">Took <span className="font-medium text-foreground">{selectedMigraine.medication}</span></span>
+              </div>
+            )}
+
+            {/* Notes */}
             {selectedMigraine.notes && (
-              <p className="text-sm text-muted-foreground">{selectedMigraine.notes}</p>
+              <p className="text-xs text-muted-foreground italic">"{selectedMigraine.notes}"</p>
             )}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs text-destructive hover:text-destructive"
-              onClick={() => toggleMigraineDay(selectedDay)}
-            >
-              Remove migraine entry
-            </Button>
           </CardContent>
         </Card>
       )}
 
-      {/* Tip */}
-      <p className="text-xs text-muted-foreground text-center">
-        Tap any day to add a migraine. Tap a marked day to view details or remove it.
-      </p>
+      {!selectedDay && (
+        <p className="text-xs text-muted-foreground text-center">
+          Tap a highlighted day to view full migraine details
+        </p>
+      )}
+
+      {selectedDay && !selectedMigraine && (
+        <p className="text-xs text-muted-foreground text-center">No migraine recorded for this day</p>
+      )}
     </div>
   );
 }
