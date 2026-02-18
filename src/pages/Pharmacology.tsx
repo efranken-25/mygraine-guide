@@ -208,8 +208,8 @@ export default function Pharmacology() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Drug Analysis</h1>
-        <p className="text-muted-foreground">Clinical pharmacology, interactions & migraine correlations</p>
+        <h1 className="text-2xl font-bold tracking-tight">Medication Analysis</h1>
+        <p className="text-muted-foreground">Medication search, interactions & migraine correlations</p>
       </div>
 
       {/* ── Migraine regime analysis ─────────────────────────────────────── */}
@@ -280,7 +280,7 @@ export default function Pharmacology() {
       {/* ── Drug Lookup ──────────────────────────────────────────────────── */}
       <div className="space-y-3">
         <h2 className="text-lg font-semibold flex items-center gap-2">
-          <FlaskConical className="h-5 w-5 text-primary" /> Drug Lookup
+          <FlaskConical className="h-5 w-5 text-primary" /> Medication Search
         </h2>
 
         <div className="flex flex-wrap gap-1.5">
