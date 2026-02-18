@@ -136,7 +136,7 @@ function classColor(c: string) {
   return "bg-secondary text-secondary-foreground";
 }
 
-export default function MedicationTracker() {
+export default function MedicationTracker({ hideHeader }: { hideHeader?: boolean } = {}) {
   const [meds, setMeds] = useState<Medication[]>(MOCK_MEDS);
   const [showForm, setShowForm] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
@@ -236,11 +236,15 @@ export default function MedicationTracker() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Medications</h1>
-          <p className="text-muted-foreground">Track your medications & doses</p>
+      {!hideHeader && (
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Medications</h1>
+            <p className="text-muted-foreground">Track your medications & doses</p>
+          </div>
         </div>
+      )}
+      <div className="flex items-center justify-end">
         <Button size="sm" onClick={() => { setShowForm(!showForm); if (showForm) resetForm(); }}>
           <Plus className="h-4 w-4 mr-1" /> Add
         </Button>

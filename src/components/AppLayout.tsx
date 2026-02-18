@@ -1,14 +1,13 @@
 import { ReactNode } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, Calendar, TrendingUp, Pill, ShieldCheck, FlaskConical, Stethoscope } from "lucide-react";
+import { Home, Calendar, Pill, ShieldCheck, Stethoscope } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Brain } from "lucide-react";
 
 const navItems = [
   { to: "/", icon: Home, label: "Home" },
   { to: "/calendar", icon: Calendar, label: "Calendar" },
-  { to: "/medications", icon: Pill, label: "Meds" },
-  { to: "/pharmacology", icon: FlaskConical, label: "Medications" },
+  { to: "/medications", icon: Pill, label: "Medications" },
   { to: "/find-care", icon: Stethoscope, label: "Find Care" },
   { to: "/insurance", icon: ShieldCheck, label: "Insurance" },
 ];
