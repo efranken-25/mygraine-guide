@@ -126,7 +126,7 @@ const migraineRoleStyle = (role: MigraineRelevance["role"]) =>
 
 // ─── component ──────────────────────────────────────────────────────────────
 
-export default function Pharmacology() {
+export default function Pharmacology({ hideHeader }: { hideHeader?: boolean } = {}) {
   const [search, setSearch] = useState("");
   const [drugInfo, setDrugInfo] = useState<DrugInfo | null>(null);
   const [drugLoading, setDrugLoading] = useState(false);
@@ -207,10 +207,12 @@ export default function Pharmacology() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Medication Analysis</h1>
-        <p className="text-muted-foreground">Medication search, interactions & migraine correlations</p>
-      </div>
+      {!hideHeader && (
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Medication Analysis</h1>
+          <p className="text-muted-foreground">Medication search, interactions & migraine correlations</p>
+        </div>
+      )}
 
       {/* ── Migraine regime analysis ─────────────────────────────────────── */}
       <Card className="border-primary/20 bg-primary/5">
