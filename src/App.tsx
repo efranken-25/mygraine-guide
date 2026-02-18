@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
 import MigraineTracker from "@/pages/MigraineTracker";
+import MigraineHistory from "@/pages/MigraineHistory";
 import MigraineCalendar from "@/pages/MigraineCalendar";
 import Predictions from "@/pages/Predictions";
 import Recommendations from "@/pages/Recommendations";
@@ -23,6 +24,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<AppLayout><MigraineTracker /></AppLayout>} />
+          <Route path="/history" element={<AppLayout><MigraineHistory /></AppLayout>} />
           <Route path="/calendar" element={<AppLayout><MigraineCalendar /></AppLayout>} />
           <Route path="/predictions" element={<AppLayout><Predictions /></AppLayout>} />
           <Route path="/recommendations" element={<AppLayout><Recommendations /></AppLayout>} />
@@ -37,3 +39,4 @@ const App = () => (
 );
 
 export default App;
+

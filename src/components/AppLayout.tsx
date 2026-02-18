@@ -1,16 +1,17 @@
 import { ReactNode } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, Calendar, Pill, ShieldCheck, Stethoscope } from "lucide-react";
+import { Home, Calendar, Pill, ShieldCheck, Stethoscope, ClipboardList } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Brain } from "lucide-react";
 
 const navItems = [
   { to: "/", icon: Home, label: "Home" },
+  { to: "/history", icon: ClipboardList, label: "History" },
   { to: "/calendar", icon: Calendar, label: "Calendar" },
   { to: "/medications", icon: Pill, label: "Medications" },
-  { to: "/find-care", icon: Stethoscope, label: "Find Care" },
   { to: "/insurance", icon: ShieldCheck, label: "Insurance" },
 ];
+
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
