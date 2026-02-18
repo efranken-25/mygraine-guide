@@ -349,7 +349,7 @@ export default function MigraineTracker() {
       {/* Entry list */}
       <div className="space-y-3">
         <h2 className="text-lg font-semibold">Recent Entries</h2>
-        {MOCK_ENTRIES.map((entry) => (
+        {MOCK_ENTRIES.slice(0, 3).map((entry) => (
           <Card key={entry.id} className="overflow-hidden">
             <CardContent className="p-4">
               <div className="flex items-start justify-between mb-2">
