@@ -25,30 +25,30 @@ Deno.serve(async (req) => {
     const labelRes = await fetch(labelUrl);
     const labelData = await labelRes.json();
 
-    const label = labelData.results?.[0];
+    let label = labelData.results?.[0];
 
     if (!label) {
       // Try a broader search
       const broadUrl = `https://api.fda.gov/drug/label.json?search="${encoded}"&limit=1`;
       const broadRes = await fetch(broadUrl);
       const broadData = await broadRes.json();
-      const broadLabel = broadData.results?.[0];
+      label = broadData.results?.[0];
+    }
 
-      if (!broadLabel) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'Drug not found in FDA database' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
+    if (!label) {
       return new Response(
-        JSON.stringify({ success: true, data: extractDrugInfo(broadLabel, drugName) }),
+        JSON.stringify({ success: false, error: 'Drug not found in FDA database' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    const drugInfo = extractDrugInfo(label, drugName);
+
+    // Generate AI plain-language summary
+    const aiSummary = await generateAISummary(drugInfo);
+
     return new Response(
-      JSON.stringify({ success: true, data: extractDrugInfo(label, drugName) }),
+      JSON.stringify({ success: true, data: { ...drugInfo, aiSummary } }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
@@ -60,6 +60,66 @@ Deno.serve(async (req) => {
     );
   }
 });
+
+async function generateAISummary(drugInfo: ReturnType<typeof extractDrugInfo>): Promise<{
+  whatItDoes: string;
+  commonSideEffects: string[];
+  importantWarnings: string[];
+  interactions: string[];
+  bottomLine: string;
+} | null> {
+  try {
+    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+    if (!lovableApiKey) return null;
+
+    const prompt = `You are a patient-friendly clinical pharmacist. Summarize the following FDA drug label information for a migraine patient in plain, simple English. Be warm, clear, and reassuring — avoid medical jargon.
+
+Drug: ${drugInfo.name} (${drugInfo.genericName})
+Drug Class: ${drugInfo.drugClass}
+Indications: ${drugInfo.indications.join('; ')}
+Adverse Reactions (raw FDA text): ${drugInfo.adverseReactions.slice(0, 4).join(' | ')}
+Warnings (raw FDA text): ${drugInfo.warnings.slice(0, 4).join(' | ')}
+Drug Interactions (raw FDA text): ${drugInfo.drugInteractions.slice(0, 3).join(' | ')}
+
+Return a JSON object with exactly these fields:
+{
+  "whatItDoes": "1-2 sentence plain-English explanation of what this drug does and why it's used",
+  "commonSideEffects": ["3-5 most common side effects in plain language, short phrases"],
+  "importantWarnings": ["2-4 important safety points in plain language, starting with action words like 'Tell your doctor if...' or 'Avoid...'"],
+  "interactions": ["2-3 key interaction warnings in plain language"],
+  "bottomLine": "1 sentence summary of the most important thing the patient should know"
+}
+
+Return ONLY valid JSON, no markdown.`;
+
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${lovableApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 600,
+        temperature: 0.3,
+      }),
+    });
+
+    if (!response.ok) return null;
+
+    const result = await response.json();
+    const content = result.choices?.[0]?.message?.content?.trim();
+    if (!content) return null;
+
+    // Strip markdown code fences if present
+    const clean = content.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+    return JSON.parse(clean);
+  } catch (e) {
+    console.error('AI summary error:', e);
+    return null;
+  }
+}
 
 function extractDrugInfo(label: Record<string, unknown>, drugName: string) {
   const arr = (field: unknown): string[] => {
