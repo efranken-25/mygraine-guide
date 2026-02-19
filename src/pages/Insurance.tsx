@@ -16,6 +16,7 @@ interface FormularyDrug {
   name: string;
   brandNames?: string[];
   drugClass?: string;
+  migraineFocused?: boolean;
   tier: number;
   covered: boolean;
   paRequired: boolean;
@@ -166,6 +167,78 @@ function DrugRow({ drug }: { drug: FormularyDrug }) {
   );
 }
 
+/* ─── Drug class section header ──────────────────────── */
+function DrugClassGroup({ drugClass, drugs }: { drugClass: string; drugs: FormularyDrug[] }) {
+  const [collapsed, setCollapsed] = useState(false);
+  return (
+    <div>
+      <button
+        onClick={() => setCollapsed(!collapsed)}
+        className="w-full flex items-center justify-between py-1.5 px-1 mb-1.5 group"
+      >
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground group-hover:text-foreground transition-colors">
+          {drugClass} <span className="font-normal">({drugs.length})</span>
+        </span>
+        {collapsed ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />}
+      </button>
+      {!collapsed && (
+        <div className="space-y-1.5">
+          {drugs.map((drug) => <DrugRow key={drug.name} drug={drug} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Grouped formulary list ─────────────────────────── */
+function GroupedDrugList({ drugs }: { drugs: FormularyDrug[] }) {
+  const migraine = drugs.filter((d) => d.migraineFocused !== false);
+  const other = drugs.filter((d) => d.migraineFocused === false);
+
+  const groupByClass = (list: FormularyDrug[]) => {
+    const map = new Map<string, FormularyDrug[]>();
+    for (const drug of list) {
+      const cls = drug.drugClass || "Other";
+      if (!map.has(cls)) map.set(cls, []);
+      map.get(cls)!.push(drug);
+    }
+    return map;
+  };
+
+  const migraineGroups = groupByClass(migraine);
+  const otherGroups = groupByClass(other);
+
+  return (
+    <div className="space-y-4">
+      {migraineGroups.size > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <div className="h-px flex-1 bg-primary/20" />
+            <span className="text-xs font-semibold text-primary px-1">Migraine Treatments</span>
+            <div className="h-px flex-1 bg-primary/20" />
+          </div>
+          {Array.from(migraineGroups.entries()).map(([cls, clsDrugs]) => (
+            <DrugClassGroup key={cls} drugClass={cls} drugs={clsDrugs} />
+          ))}
+        </div>
+      )}
+
+      {otherGroups.size > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <div className="h-px flex-1 bg-border" />
+            <span className="text-xs font-semibold text-muted-foreground px-1">Other Treatments</span>
+            <div className="h-px flex-1 bg-border" />
+          </div>
+          {Array.from(otherGroups.entries()).map(([cls, clsDrugs]) => (
+            <DrugClassGroup key={cls} drugClass={cls} drugs={clsDrugs} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Live formulary lookup for a plan ───────────────── */
 function FormularyPanel({ plan }: { plan: Plan }) {
   const [drugQuery, setDrugQuery] = useState("");
@@ -258,9 +331,7 @@ function FormularyPanel({ plan }: { plan: Plan }) {
 
           {!loading && drugs.length > 0 && (
             <div className="space-y-2">
-              {drugs.map((drug) => (
-                <DrugRow key={drug.name} drug={drug} />
-              ))}
+              <GroupedDrugList drugs={drugs} />
               <p className="text-[10px] text-muted-foreground flex items-center gap-1 px-1 pt-1">
                 <Info className="h-3 w-3 shrink-0" />
                 Formulary data is a reference guide. Verify with your plan for precise copay/coverage details.
