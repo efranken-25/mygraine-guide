@@ -18,8 +18,9 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
+
+const LS_KEY = "migraine_insurance_plans";
 
 /* ─── Types ─────────────────────────────────────────── */
 interface FormularyDrug {
@@ -385,30 +386,32 @@ function PlanDialog({
   );
 }
 
+/* ─── localStorage helpers ───────────────────────────── */
+function loadFromStorage(): SavedPlan[] {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    return raw ? (JSON.parse(raw) as SavedPlan[]) : [];
+  } catch {
+    return [];
+  }
+}
+function saveToStorage(plans: SavedPlan[]) {
+  localStorage.setItem(LS_KEY, JSON.stringify(plans));
+}
+
 /* ─── My Plans Tab ───────────────────────────────────── */
 function MyPlansTab() {
-  const { user } = useAuth();
   const { toast } = useToast();
-  const [plans, setPlans] = useState<SavedPlan[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [plans, setPlans] = useState<SavedPlan[]>(() => loadFromStorage());
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editPlan, setEditPlan] = useState<SavedPlan | null>(null);
   const [initialForm, setInitialForm] = useState<PlanFormData>(EMPTY_FORM);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
-  const loadPlans = useCallback(async () => {
-    if (!user) return;
-    setLoading(true);
-    const { data } = await supabase
-      .from("insurance_plans")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: true });
-    setPlans((data as SavedPlan[]) || []);
-    setLoading(false);
-  }, [user]);
-
-  useEffect(() => { loadPlans(); }, [loadPlans]);
+  const persist = (updated: SavedPlan[]) => {
+    setPlans(updated);
+    saveToStorage(updated);
+  };
 
   const openAdd = (defaultType?: InsurancePlanType) => {
     setEditPlan(null);
@@ -436,65 +439,60 @@ function MyPlansTab() {
   };
 
   const handleSave = async (form: PlanFormData) => {
-    if (!user) return;
-    const payload = {
-      user_id: user.id,
-      plan_type: form.plan_type,
-      carrier: form.carrier.trim(),
-      plan_name: form.plan_name.trim() || null,
-      member_id: form.member_id.trim() || null,
-      group_number: form.group_number.trim() || null,
-      rx_bin: form.rx_bin.trim() || null,
-      rx_pcn: form.rx_pcn.trim() || null,
-      rx_group: form.rx_group.trim() || null,
-      phone: form.phone.trim() || null,
-      website: form.website.trim() || null,
-      effective_date: form.effective_date || null,
-      notes: form.notes.trim() || null,
-    };
-
     if (editPlan) {
-      const { error } = await supabase.from("insurance_plans").update(payload).eq("id", editPlan.id);
-      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+      const updated = plans.map((p) =>
+        p.id === editPlan.id
+          ? {
+              ...p,
+              plan_type: form.plan_type,
+              carrier: form.carrier.trim(),
+              plan_name: form.plan_name.trim() || null,
+              member_id: form.member_id.trim() || null,
+              group_number: form.group_number.trim() || null,
+              rx_bin: form.rx_bin.trim() || null,
+              rx_pcn: form.rx_pcn.trim() || null,
+              rx_group: form.rx_group.trim() || null,
+              phone: form.phone.trim() || null,
+              website: form.website.trim() || null,
+              effective_date: form.effective_date || null,
+              notes: form.notes.trim() || null,
+            }
+          : p
+      );
+      persist(updated);
       toast({ title: "Plan updated" });
     } else {
-      const { error } = await supabase.from("insurance_plans").insert(payload);
-      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+      const newPlan: SavedPlan = {
+        id: crypto.randomUUID(),
+        plan_type: form.plan_type,
+        carrier: form.carrier.trim(),
+        plan_name: form.plan_name.trim() || null,
+        member_id: form.member_id.trim() || null,
+        group_number: form.group_number.trim() || null,
+        rx_bin: form.rx_bin.trim() || null,
+        rx_pcn: form.rx_pcn.trim() || null,
+        rx_group: form.rx_group.trim() || null,
+        phone: form.phone.trim() || null,
+        website: form.website.trim() || null,
+        effective_date: form.effective_date || null,
+        notes: form.notes.trim() || null,
+        is_active: true,
+      };
+      persist([...plans, newPlan]);
       toast({ title: "Plan added" });
     }
     setDialogOpen(false);
-    loadPlans();
   };
 
-  const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("insurance_plans").delete().eq("id", id);
-    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+  const handleDelete = (id: string) => {
+    persist(plans.filter((p) => p.id !== id));
     toast({ title: "Plan removed" });
     setDeleteConfirm(null);
-    loadPlans();
   };
 
   const primary   = plans.filter((p) => p.plan_type === "primary");
   const secondary = plans.filter((p) => p.plan_type === "secondary");
   const pharmacy  = plans.filter((p) => p.plan_type === "pharmacy");
-
-  if (!user) {
-    return (
-      <Card>
-        <CardContent className="p-6 text-center text-sm text-muted-foreground">
-          Sign in to save and manage your insurance plans.
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-5 w-5 animate-spin text-primary" />
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
