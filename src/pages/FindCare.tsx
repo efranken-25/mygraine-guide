@@ -37,16 +37,15 @@ const PBM_NETWORKS: Record<string, string[]> = {
   "medco":           ["Walgreens", "Rite Aid", "CVS Pharmacy", "Kroger", "Mariano's", "Walmart"],
 };
 
-/* Resolve a carrier name to its in-network chains */
 function getInNetworkChains(carrier: string): string[] | null {
   const lc = carrier.toLowerCase();
   for (const [key, chains] of Object.entries(PBM_NETWORKS)) {
     if (lc.includes(key) || key.includes(lc)) return chains;
   }
-  return null; // unknown — show all
+  return null;
 }
 
-/* ─── Pharmacy directory (Chicago-area) ────────────────────────────────────── */
+/* ─── Types ─────────────────────────────────────────────────────────────────── */
 type Pharmacy = {
   id: number;
   name: string;
@@ -62,23 +61,6 @@ type Pharmacy = {
   twentyFourHour: boolean;
 };
 
-const PHARMACIES: Pharmacy[] = [
-  { id: 1,  chain: "Walgreens",        name: "Walgreens – Michigan Ave",       address: "757 N Michigan Ave, Chicago, IL",      distance: "0.8 mi",  phone: "(312) 787-1428", hours: "24 hours",       driveThru: false, mailOrder: false, specialty: true,  compounding: false, twentyFourHour: true  },
-  { id: 2,  chain: "CVS Pharmacy",     name: "CVS Pharmacy – State St",        address: "1201 N State St, Chicago, IL",         distance: "1.1 mi",  phone: "(312) 255-0510", hours: "8am–10pm",       driveThru: false, mailOrder: true,  specialty: true,  compounding: false, twentyFourHour: false },
-  { id: 3,  chain: "Jewel-Osco",       name: "Jewel-Osco – Clark St",          address: "1224 S Wabash Ave, Chicago, IL",       distance: "1.6 mi",  phone: "(312) 986-0849", hours: "8am–9pm",        driveThru: false, mailOrder: false, specialty: false, compounding: false, twentyFourHour: false },
-  { id: 4,  chain: "Walgreens",        name: "Walgreens – Diversey Ave",       address: "2800 N Diversey Ave, Chicago, IL",     distance: "2.3 mi",  phone: "(773) 327-3334", hours: "24 hours",       driveThru: true,  mailOrder: false, specialty: false, compounding: false, twentyFourHour: true  },
-  { id: 5,  chain: "CVS Pharmacy",     name: "CVS Pharmacy – Lincoln Ave",     address: "3033 N Lincoln Ave, Chicago, IL",      distance: "2.9 mi",  phone: "(773) 549-6800", hours: "7am–10pm",       driveThru: false, mailOrder: true,  specialty: false, compounding: false, twentyFourHour: false },
-  { id: 6,  chain: "Mariano's",        name: "Mariano's Pharmacy – Halsted",   address: "2021 S Halsted St, Chicago, IL",       distance: "3.1 mi",  phone: "(312) 666-2100", hours: "9am–8pm",        driveThru: false, mailOrder: false, specialty: false, compounding: false, twentyFourHour: false },
-  { id: 7,  chain: "Rite Aid",         name: "Rite Aid – Milwaukee Ave",       address: "3015 N Milwaukee Ave, Chicago, IL",    distance: "3.4 mi",  phone: "(773) 235-9800", hours: "9am–9pm",        driveThru: false, mailOrder: false, specialty: false, compounding: false, twentyFourHour: false },
-  { id: 8,  chain: "Walmart",          name: "Walmart Pharmacy – Chatham",     address: "8431 S Stewart Ave, Chicago, IL",      distance: "5.2 mi",  phone: "(773) 487-0142", hours: "9am–7pm",        driveThru: false, mailOrder: false, specialty: false, compounding: false, twentyFourHour: false },
-  { id: 9,  chain: "Costco",           name: "Costco Pharmacy – Crestwood",    address: "13350 Cicero Ave, Crestwood, IL",      distance: "6.8 mi",  phone: "(708) 371-6504", hours: "10am–6pm",       driveThru: false, mailOrder: false, specialty: false, compounding: false, twentyFourHour: false },
-  { id: 10, chain: "Target Pharmacy",  name: "Target Pharmacy – Archer Ave",   address: "7100 S Cicero Ave, Bedford Park, IL",  distance: "7.4 mi",  phone: "(708) 924-8160", hours: "8am–9pm",        driveThru: true,  mailOrder: false, specialty: false, compounding: false, twentyFourHour: false },
-  { id: 11, chain: "Meijer",           name: "Meijer Pharmacy – North Ave",    address: "900 W North Ave, Melrose Park, IL",    distance: "8.1 mi",  phone: "(708) 450-8100", hours: "8am–9pm",        driveThru: true,  mailOrder: false, specialty: false, compounding: false, twentyFourHour: false },
-  { id: 12, chain: "Walgreens",        name: "Walgreens – Oak Park",           address: "7232 W North Ave, Oak Park, IL",       distance: "9.0 mi",  phone: "(708) 848-5520", hours: "8am–10pm",       driveThru: true,  mailOrder: false, specialty: true,  compounding: false, twentyFourHour: false },
-  { id: 13, chain: "Kroger",           name: "Kroger Pharmacy – Naperville",   address: "2727 W Ogden Ave, Naperville, IL",     distance: "9.5 mi",  phone: "(630) 369-1200", hours: "9am–8pm",        driveThru: false, mailOrder: false, specialty: false, compounding: false, twentyFourHour: false },
-];
-
-/* ─── Types ──────────────────────────────────────────── */
 type Doctor = {
   id: number;
   name: string;
@@ -108,10 +90,27 @@ interface SavedPlan {
   plan_name: string | null;
 }
 
-/* ─── Active medical plan (fallback when no DB plan) ─── */
+/* ─── Pharmacy directory ────────────────────────────────────────────────────── */
+const PHARMACIES: Pharmacy[] = [
+  { id: 1,  chain: "Walgreens",        name: "Walgreens – Michigan Ave",       address: "757 N Michigan Ave, Chicago, IL",      distance: "0.8 mi",  phone: "(312) 787-1428", hours: "24 hours",  driveThru: false, mailOrder: false, specialty: true,  compounding: false, twentyFourHour: true  },
+  { id: 2,  chain: "CVS Pharmacy",     name: "CVS Pharmacy – State St",        address: "1201 N State St, Chicago, IL",         distance: "1.1 mi",  phone: "(312) 255-0510", hours: "8am–10pm", driveThru: false, mailOrder: true,  specialty: true,  compounding: false, twentyFourHour: false },
+  { id: 3,  chain: "Jewel-Osco",       name: "Jewel-Osco – Clark St",          address: "1224 S Wabash Ave, Chicago, IL",       distance: "1.6 mi",  phone: "(312) 986-0849", hours: "8am–9pm",  driveThru: false, mailOrder: false, specialty: false, compounding: false, twentyFourHour: false },
+  { id: 4,  chain: "Walgreens",        name: "Walgreens – Diversey Ave",       address: "2800 N Diversey Ave, Chicago, IL",     distance: "2.3 mi",  phone: "(773) 327-3334", hours: "24 hours",  driveThru: true,  mailOrder: false, specialty: false, compounding: false, twentyFourHour: true  },
+  { id: 5,  chain: "CVS Pharmacy",     name: "CVS Pharmacy – Lincoln Ave",     address: "3033 N Lincoln Ave, Chicago, IL",      distance: "2.9 mi",  phone: "(773) 549-6800", hours: "7am–10pm", driveThru: false, mailOrder: true,  specialty: false, compounding: false, twentyFourHour: false },
+  { id: 6,  chain: "Mariano's",        name: "Mariano's Pharmacy – Halsted",   address: "2021 S Halsted St, Chicago, IL",       distance: "3.1 mi",  phone: "(312) 666-2100", hours: "9am–8pm",  driveThru: false, mailOrder: false, specialty: false, compounding: false, twentyFourHour: false },
+  { id: 7,  chain: "Rite Aid",         name: "Rite Aid – Milwaukee Ave",       address: "3015 N Milwaukee Ave, Chicago, IL",    distance: "3.4 mi",  phone: "(773) 235-9800", hours: "9am–9pm",  driveThru: false, mailOrder: false, specialty: false, compounding: false, twentyFourHour: false },
+  { id: 8,  chain: "Walmart",          name: "Walmart Pharmacy – Chatham",     address: "8431 S Stewart Ave, Chicago, IL",      distance: "5.2 mi",  phone: "(773) 487-0142", hours: "9am–7pm",  driveThru: false, mailOrder: false, specialty: false, compounding: false, twentyFourHour: false },
+  { id: 9,  chain: "Costco",           name: "Costco Pharmacy – Crestwood",    address: "13350 Cicero Ave, Crestwood, IL",      distance: "6.8 mi",  phone: "(708) 371-6504", hours: "10am–6pm", driveThru: false, mailOrder: false, specialty: false, compounding: false, twentyFourHour: false },
+  { id: 10, chain: "Target Pharmacy",  name: "Target Pharmacy – Archer Ave",   address: "7100 S Cicero Ave, Bedford Park, IL",  distance: "7.4 mi",  phone: "(708) 924-8160", hours: "8am–9pm",  driveThru: true,  mailOrder: false, specialty: false, compounding: false, twentyFourHour: false },
+  { id: 11, chain: "Meijer",           name: "Meijer Pharmacy – North Ave",    address: "900 W North Ave, Melrose Park, IL",    distance: "8.1 mi",  phone: "(708) 450-8100", hours: "8am–9pm",  driveThru: true,  mailOrder: false, specialty: false, compounding: false, twentyFourHour: false },
+  { id: 12, chain: "Walgreens",        name: "Walgreens – Oak Park",           address: "7232 W North Ave, Oak Park, IL",       distance: "9.0 mi",  phone: "(708) 848-5520", hours: "8am–10pm", driveThru: true,  mailOrder: false, specialty: true,  compounding: false, twentyFourHour: false },
+  { id: 13, chain: "Kroger",           name: "Kroger Pharmacy – Naperville",   address: "2727 W Ogden Ave, Naperville, IL",     distance: "9.5 mi",  phone: "(630) 369-1200", hours: "9am–8pm",  driveThru: false, mailOrder: false, specialty: false, compounding: false, twentyFourHour: false },
+];
+
+/* ─── Active medical plan (fallback) ─────────────────────────────────────────── */
 const ACTIVE_PLAN = { carrier: "Blue Cross Blue Shield", planName: "PPO Gold 1000" };
 
-/* ─── Provider directory ─────────────────────────────── */
+/* ─── Provider directory ─────────────────────────────────────────────────────── */
 const ALL_DOCTORS: Doctor[] = [
   { id: 1, name: "Dr. Sarah Chen", title: "MD, PhD", specialty: ["Headache Medicine", "Neurology"], practice: "Northwestern Headache Center", address: "675 N Saint Clair St, Chicago, IL", distance: "1.2 mi", rating: 4.9, reviewCount: 312, acceptingNew: true, insuranceAccepted: ["Blue Cross Blue Shield", "Aetna", "Cigna", "UnitedHealthcare"], nextAvailable: "Feb 24, 2026", phone: "(312) 555-0182", migraineSpecialist: true, headacheCenter: true, telemedicine: true, boardCertified: true, yearsExp: 14, about: "Dr. Chen specializes in refractory migraine and CGRP therapies. She leads the Northwestern Headache Clinic and has published extensively on preventive migraine treatment." },
   { id: 2, name: "Dr. James Okafor", title: "MD", specialty: ["Neurology", "Pain Medicine"], practice: "Rush University Medical Center", address: "1653 W Congress Pkwy, Chicago, IL", distance: "2.4 mi", rating: 4.7, reviewCount: 184, acceptingNew: true, insuranceAccepted: ["Blue Cross Blue Shield", "Medicare", "Humana"], nextAvailable: "Mar 3, 2026", phone: "(312) 555-0247", migraineSpecialist: true, headacheCenter: false, telemedicine: false, boardCertified: true, yearsExp: 9, about: "Dr. Okafor focuses on migraine management with an emphasis on lifestyle and trigger identification alongside pharmacologic treatment." },
@@ -131,7 +130,7 @@ function acceptsMyPlan(doc: Doctor) {
   );
 }
 
-/* ─── Doctor card ─────────────────────────────────────── */
+/* ─── Doctor card ────────────────────────────────────────────────────────────── */
 function DoctorCard({ doc, isExpanded, onToggle }: { doc: Doctor; isExpanded: boolean; onToggle: () => void }) {
   const inNetwork = acceptsMyPlan(doc);
   return (
@@ -221,12 +220,21 @@ function DoctorCard({ doc, isExpanded, onToggle }: { doc: Doctor; isExpanded: bo
   );
 }
 
-/* ─── Neurologists tab ───────────────────────────────── */
+/* ─── Neurologists tab ───────────────────────────────────────────────────────── */
 function NeurologistsTab() {
-  const [zip, setZip] = useState("60611");
+  const [zip, setZip] = useState("");
+  const [submittedZip, setSubmittedZip] = useState("");
   const [filter, setFilter] = useState<DoctorFilter>("In-Network Only");
-  const [expandedDoc, setExpandedDoc] = useState<number | null>(1);
-  const [searched, setSearched] = useState(true);
+  const [expandedDoc, setExpandedDoc] = useState<number | null>(null);
+  const [searched, setSearched] = useState(false);
+
+  const handleSearch = () => {
+    const clean = zip.trim();
+    if (!clean) return;
+    setSubmittedZip(clean);
+    setSearched(true);
+    setExpandedDoc(null);
+  };
 
   const filtered = ALL_DOCTORS.filter((d) => {
     if (filter === "In-Network Only") return acceptsMyPlan(d);
@@ -264,9 +272,16 @@ function NeurologistsTab() {
         <div className="flex gap-2">
           <div className="relative flex-1">
             <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="ZIP code or city" value={zip} onChange={(e) => setZip(e.target.value)} className="pl-9" />
+            <Input
+              placeholder="Enter ZIP code"
+              value={zip}
+              onChange={(e) => setZip(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+              className="pl-9"
+              maxLength={10}
+            />
           </div>
-          <Button onClick={() => setSearched(true)} className="gap-1.5">
+          <Button onClick={handleSearch} className="gap-1.5" disabled={!zip.trim()}>
             <Search className="h-4 w-4" /> Search
           </Button>
         </div>
@@ -280,11 +295,20 @@ function NeurologistsTab() {
         </div>
       </div>
 
+      {!searched && (
+        <Card className="border-dashed">
+          <CardContent className="p-10 text-center space-y-2">
+            <MapPin className="h-8 w-8 mx-auto text-muted-foreground/40" />
+            <p className="text-sm font-medium text-muted-foreground">Enter a ZIP code to find neurologists near you</p>
+          </CardContent>
+        </Card>
+      )}
+
       {searched && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              {sorted.length} provider{sorted.length !== 1 ? "s" : ""} near {zip}
+              {sorted.length} provider{sorted.length !== 1 ? "s" : ""} near {submittedZip}
               {filter === "In-Network Only" && " · in-network only"}
             </p>
             <div className="flex items-center gap-1 text-xs text-muted-foreground"><Navigation className="h-3 w-3" /> Within 10 mi</div>
@@ -301,7 +325,7 @@ function NeurologistsTab() {
   );
 }
 
-/* ─── Pharmacy card ──────────────────────────────────── */
+/* ─── Pharmacy card ──────────────────────────────────────────────────────────── */
 function PharmacyCard({ pharmacy, inNetwork }: { pharmacy: Pharmacy; inNetwork: boolean | null }) {
   const [expanded, setExpanded] = useState(false);
   return (
@@ -318,7 +342,6 @@ function PharmacyCard({ pharmacy, inNetwork }: { pharmacy: Pharmacy; inNetwork: 
           <span className="text-[10px] text-muted-foreground shrink-0">{pharmacy.distance}</span>
         </div>
 
-        {/* Network status + feature badges */}
         <div className="flex items-center gap-2 flex-wrap mb-2">
           {inNetwork === true && (
             <div className="flex items-center gap-1 text-[10px] text-[hsl(var(--severity-low))] font-medium">
@@ -370,17 +393,25 @@ function PharmacyCard({ pharmacy, inNetwork }: { pharmacy: Pharmacy; inNetwork: 
   );
 }
 
-/* ─── Pharmacies tab ─────────────────────────────────── */
+/* ─── Pharmacies tab ─────────────────────────────────────────────────────────── */
 const PHARMACY_FILTERS = ["All", "In-Network Only", "24hr", "Drive-Thru", "Specialty Rx", "Mail Order"] as const;
 type PharmacyFilter = typeof PHARMACY_FILTERS[number];
 
 function PharmaciesTab() {
   const { user } = useAuth();
-  const [zip, setZip] = useState("60611");
+  const [zip, setZip] = useState("");
+  const [submittedZip, setSubmittedZip] = useState("");
   const [filter, setFilter] = useState<PharmacyFilter>("In-Network Only");
-  const [searched, setSearched] = useState(true);
+  const [searched, setSearched] = useState(false);
   const [rxPlan, setRxPlan] = useState<SavedPlan | null>(null);
   const [loadingPlan, setLoadingPlan] = useState(true);
+
+  const handleSearch = () => {
+    const clean = zip.trim();
+    if (!clean) return;
+    setSubmittedZip(clean);
+    setSearched(true);
+  };
 
   const loadRxPlan = useCallback(async () => {
     if (!user) { setLoadingPlan(false); return; }
@@ -398,7 +429,6 @@ function PharmaciesTab() {
 
   useEffect(() => { loadRxPlan(); }, [loadRxPlan]);
 
-  // Determine in-network chains from the saved plan
   const inNetworkChains: string[] | null = rxPlan ? getInNetworkChains(rxPlan.carrier) : null;
 
   function isInNetwork(pharmacy: Pharmacy): boolean | null {
@@ -462,7 +492,7 @@ function PharmaciesTab() {
         </Card>
       )}
 
-      {/* Notable out-of-network example when Express Scripts is detected */}
+      {/* Express Scripts out-of-network warning */}
       {rxPlan && rxPlan.carrier.toLowerCase().includes("express scripts") && (
         <Card className="border-destructive/20 bg-destructive/5">
           <CardContent className="p-3 flex items-start gap-2">
@@ -491,9 +521,16 @@ function PharmaciesTab() {
         <div className="flex gap-2">
           <div className="relative flex-1">
             <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="ZIP code or city" value={zip} onChange={(e) => setZip(e.target.value)} className="pl-9" />
+            <Input
+              placeholder="Enter ZIP code"
+              value={zip}
+              onChange={(e) => setZip(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+              className="pl-9"
+              maxLength={10}
+            />
           </div>
-          <Button onClick={() => setSearched(true)} className="gap-1.5">
+          <Button onClick={handleSearch} className="gap-1.5" disabled={!zip.trim()}>
             <Search className="h-4 w-4" /> Search
           </Button>
         </div>
@@ -507,11 +544,20 @@ function PharmaciesTab() {
         </div>
       </div>
 
+      {!searched && (
+        <Card className="border-dashed">
+          <CardContent className="p-10 text-center space-y-2">
+            <MapPin className="h-8 w-8 mx-auto text-muted-foreground/40" />
+            <p className="text-sm font-medium text-muted-foreground">Enter a ZIP code to find pharmacies near you</p>
+          </CardContent>
+        </Card>
+      )}
+
       {searched && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              {sorted.length} pharmac{sorted.length !== 1 ? "ies" : "y"} near {zip}
+              {sorted.length} pharmac{sorted.length !== 1 ? "ies" : "y"} near {submittedZip}
               {filter === "In-Network Only" && " · in-network only"}
             </p>
             <div className="flex items-center gap-1 text-xs text-muted-foreground"><Navigation className="h-3 w-3" /> Within 10 mi</div>
@@ -526,7 +572,7 @@ function PharmaciesTab() {
   );
 }
 
-/* ─── Main page ──────────────────────────────────────── */
+/* ─── Main page ──────────────────────────────────────────────────────────────── */
 export default function FindCare() {
   return (
     <div className="space-y-4">
