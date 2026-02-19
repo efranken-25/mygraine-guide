@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -6,18 +6,24 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ShieldCheck, Search, ChevronDown, ChevronUp, AlertTriangle,
-  CheckCircle2, XCircle, RefreshCw, Phone, Building2, Globe,
+  CheckCircle2, XCircle, Phone, Building2, Globe, Loader2, AlertCircle,
+  Pill, X, Info,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 /* ─── Types ─────────────────────────────────────────── */
 interface FormularyDrug {
   name: string;
+  brandNames?: string[];
+  drugClass?: string;
   tier: number;
   covered: boolean;
   paRequired: boolean;
   stepTherapy: boolean;
   quantityLimit: boolean;
-  copay: string;
+  copayHint?: string;
+  copay?: string;
+  notes?: string;
   alternatives?: string[];
 }
 
@@ -26,6 +32,7 @@ interface Plan {
   carrier: string;
   planName: string;
   planType: string;
+  state?: string;
   memberId?: string;
   groupNumber?: string;
   rxBin?: string;
@@ -38,29 +45,10 @@ interface Plan {
   pharmacyHelpdesk: string;
   pharmacyHelpdeskHours: string;
   pharmacyWebsite: string;
-  formulary: FormularyDrug[];
+  formulary?: FormularyDrug[];
 }
 
-/* ─── Shared formulary drugs ─────────────────────────── */
-const MIGRAINE_DRUGS: FormularyDrug[] = [
-  { name: "Sumatriptan", tier: 2, covered: true, paRequired: false, stepTherapy: false, quantityLimit: true, copay: "$35" },
-  { name: "Rizatriptan", tier: 2, covered: true, paRequired: false, stepTherapy: false, quantityLimit: true, copay: "$35" },
-  { name: "Ubrogepant (Ubrelvy)", tier: 3, covered: true, paRequired: true, stepTherapy: true, quantityLimit: true, copay: "$65", alternatives: ["Sumatriptan", "Rizatriptan"] },
-  { name: "Rimegepant (Nurtec)", tier: 3, covered: true, paRequired: true, stepTherapy: true, quantityLimit: true, copay: "$65", alternatives: ["Sumatriptan", "Rizatriptan"] },
-  { name: "Lasmiditan (Reyvow)", tier: 3, covered: true, paRequired: true, stepTherapy: true, quantityLimit: true, copay: "$65", alternatives: ["Sumatriptan"] },
-  { name: "Topiramate", tier: 1, covered: true, paRequired: false, stepTherapy: false, quantityLimit: false, copay: "$10" },
-  { name: "Propranolol", tier: 1, covered: true, paRequired: false, stepTherapy: false, quantityLimit: false, copay: "$10" },
-  { name: "Amitriptyline", tier: 1, covered: true, paRequired: false, stepTherapy: false, quantityLimit: false, copay: "$10" },
-  { name: "Erenumab (Aimovig)", tier: 3, covered: true, paRequired: true, stepTherapy: true, quantityLimit: true, copay: "$65", alternatives: ["Topiramate", "Propranolol"] },
-  { name: "Fremanezumab (Ajovy)", tier: 3, covered: true, paRequired: true, stepTherapy: true, quantityLimit: true, copay: "$65", alternatives: ["Topiramate"] },
-  { name: "Galcanezumab (Emgality)", tier: 3, covered: true, paRequired: true, stepTherapy: true, quantityLimit: true, copay: "$65", alternatives: ["Topiramate"] },
-  { name: "Ibuprofen", tier: 1, covered: true, paRequired: false, stepTherapy: false, quantityLimit: false, copay: "$10" },
-  { name: "Naproxen", tier: 1, covered: true, paRequired: false, stepTherapy: false, quantityLimit: false, copay: "$10" },
-  { name: "Ondansetron", tier: 2, covered: true, paRequired: false, stepTherapy: false, quantityLimit: false, copay: "$35" },
-  { name: "Eptinezumab (Vyepti)", tier: 3, covered: false, paRequired: true, stepTherapy: true, quantityLimit: true, copay: "Not covered", alternatives: ["Erenumab (Aimovig)", "Topiramate"] },
-];
-
-/* ─── Plans data ─────────────────────────────────────── */
+/* ─── My Plan (user's own plan) ─────────────────────── */
 const MY_PLAN: Plan = {
   id: "bcbs-ppo-gold",
   carrier: "Blue Cross Blue Shield",
@@ -76,97 +64,7 @@ const MY_PLAN: Plan = {
   pharmacyHelpdesk: "1-800-624-2356",
   pharmacyHelpdeskHours: "Mon–Fri 8am–8pm · Sat 8am–5pm CT",
   pharmacyWebsite: "bcbsil.com/pharmacy",
-  formulary: MIGRAINE_DRUGS,
 };
-
-const OTHER_PLANS: Plan[] = [
-  {
-    id: "aetna-hmo",
-    carrier: "Aetna",
-    planName: "HMO Silver 2500",
-    planType: "HMO",
-    tier1: "$15", tier2: "$40", tier3: "$80",
-    formularyYear: "2026",
-    lastUpdated: "Jan 1, 2026",
-    pharmacyHelpdesk: "1-888-792-3862",
-    pharmacyHelpdeskHours: "24/7",
-    pharmacyWebsite: "aetna.com/pharmacy",
-    formulary: [
-      { name: "Sumatriptan", tier: 1, covered: true, paRequired: false, stepTherapy: false, quantityLimit: true, copay: "$15" },
-      { name: "Rizatriptan", tier: 1, covered: true, paRequired: false, stepTherapy: false, quantityLimit: true, copay: "$15" },
-      { name: "Ubrogepant (Ubrelvy)", tier: 3, covered: true, paRequired: true, stepTherapy: true, quantityLimit: true, copay: "$80", alternatives: ["Sumatriptan"] },
-      { name: "Rimegepant (Nurtec)", tier: 3, covered: false, paRequired: true, stepTherapy: true, quantityLimit: true, copay: "Not covered", alternatives: ["Sumatriptan", "Rizatriptan"] },
-      { name: "Lasmiditan (Reyvow)", tier: 3, covered: false, paRequired: true, stepTherapy: true, quantityLimit: true, copay: "Not covered", alternatives: ["Sumatriptan"] },
-      { name: "Topiramate", tier: 1, covered: true, paRequired: false, stepTherapy: false, quantityLimit: false, copay: "$15" },
-      { name: "Propranolol", tier: 1, covered: true, paRequired: false, stepTherapy: false, quantityLimit: false, copay: "$15" },
-      { name: "Erenumab (Aimovig)", tier: 3, covered: true, paRequired: true, stepTherapy: true, quantityLimit: true, copay: "$80", alternatives: ["Topiramate"] },
-      { name: "Fremanezumab (Ajovy)", tier: 3, covered: false, paRequired: true, stepTherapy: true, quantityLimit: true, copay: "Not covered", alternatives: ["Topiramate"] },
-      { name: "Galcanezumab (Emgality)", tier: 3, covered: true, paRequired: true, stepTherapy: true, quantityLimit: true, copay: "$80", alternatives: ["Topiramate"] },
-      { name: "Ibuprofen", tier: 1, covered: true, paRequired: false, stepTherapy: false, quantityLimit: false, copay: "$15" },
-      { name: "Naproxen", tier: 1, covered: true, paRequired: false, stepTherapy: false, quantityLimit: false, copay: "$15" },
-      { name: "Ondansetron", tier: 2, covered: true, paRequired: false, stepTherapy: false, quantityLimit: false, copay: "$40" },
-      { name: "Eptinezumab (Vyepti)", tier: 3, covered: false, paRequired: true, stepTherapy: true, quantityLimit: true, copay: "Not covered", alternatives: ["Erenumab (Aimovig)"] },
-    ],
-  },
-  {
-    id: "cigna-ppo",
-    carrier: "Cigna",
-    planName: "PPO Platinum 500",
-    planType: "PPO",
-    tier1: "$10", tier2: "$30", tier3: "$55",
-    formularyYear: "2026",
-    lastUpdated: "Jan 1, 2026",
-    pharmacyHelpdesk: "1-800-244-6224",
-    pharmacyHelpdeskHours: "24/7",
-    pharmacyWebsite: "cigna.com/pharmacy",
-    formulary: [
-      { name: "Sumatriptan", tier: 1, covered: true, paRequired: false, stepTherapy: false, quantityLimit: true, copay: "$10" },
-      { name: "Rizatriptan", tier: 1, covered: true, paRequired: false, stepTherapy: false, quantityLimit: true, copay: "$10" },
-      { name: "Ubrogepant (Ubrelvy)", tier: 2, covered: true, paRequired: true, stepTherapy: false, quantityLimit: true, copay: "$30", alternatives: ["Sumatriptan"] },
-      { name: "Rimegepant (Nurtec)", tier: 2, covered: true, paRequired: true, stepTherapy: false, quantityLimit: true, copay: "$30", alternatives: ["Sumatriptan"] },
-      { name: "Lasmiditan (Reyvow)", tier: 3, covered: true, paRequired: true, stepTherapy: true, quantityLimit: true, copay: "$55", alternatives: ["Sumatriptan"] },
-      { name: "Topiramate", tier: 1, covered: true, paRequired: false, stepTherapy: false, quantityLimit: false, copay: "$10" },
-      { name: "Propranolol", tier: 1, covered: true, paRequired: false, stepTherapy: false, quantityLimit: false, copay: "$10" },
-      { name: "Amitriptyline", tier: 1, covered: true, paRequired: false, stepTherapy: false, quantityLimit: false, copay: "$10" },
-      { name: "Erenumab (Aimovig)", tier: 3, covered: true, paRequired: true, stepTherapy: true, quantityLimit: true, copay: "$55", alternatives: ["Topiramate"] },
-      { name: "Fremanezumab (Ajovy)", tier: 3, covered: true, paRequired: true, stepTherapy: true, quantityLimit: true, copay: "$55", alternatives: ["Topiramate"] },
-      { name: "Galcanezumab (Emgality)", tier: 3, covered: true, paRequired: true, stepTherapy: true, quantityLimit: true, copay: "$55", alternatives: ["Topiramate"] },
-      { name: "Ibuprofen", tier: 1, covered: true, paRequired: false, stepTherapy: false, quantityLimit: false, copay: "$10" },
-      { name: "Naproxen", tier: 1, covered: true, paRequired: false, stepTherapy: false, quantityLimit: false, copay: "$10" },
-      { name: "Ondansetron", tier: 2, covered: true, paRequired: false, stepTherapy: false, quantityLimit: false, copay: "$30" },
-      { name: "Eptinezumab (Vyepti)", tier: 2, covered: true, paRequired: true, stepTherapy: true, quantityLimit: true, copay: "$30", alternatives: ["Erenumab (Aimovig)"] },
-    ],
-  },
-  {
-    id: "uhc-choice",
-    carrier: "UnitedHealthcare",
-    planName: "Choice Plus Gold",
-    planType: "PPO",
-    tier1: "$10", tier2: "$35", tier3: "$70",
-    formularyYear: "2026",
-    lastUpdated: "Jan 1, 2026",
-    pharmacyHelpdesk: "1-866-606-8612",
-    pharmacyHelpdeskHours: "24/7",
-    pharmacyWebsite: "uhc.com/pharmacy",
-    formulary: [
-      { name: "Sumatriptan", tier: 2, covered: true, paRequired: false, stepTherapy: false, quantityLimit: true, copay: "$35" },
-      { name: "Rizatriptan", tier: 2, covered: true, paRequired: false, stepTherapy: false, quantityLimit: true, copay: "$35" },
-      { name: "Ubrogepant (Ubrelvy)", tier: 3, covered: true, paRequired: true, stepTherapy: true, quantityLimit: true, copay: "$70", alternatives: ["Sumatriptan", "Rizatriptan"] },
-      { name: "Rimegepant (Nurtec)", tier: 3, covered: true, paRequired: true, stepTherapy: true, quantityLimit: true, copay: "$70", alternatives: ["Sumatriptan"] },
-      { name: "Lasmiditan (Reyvow)", tier: 3, covered: false, paRequired: true, stepTherapy: true, quantityLimit: true, copay: "Not covered", alternatives: ["Sumatriptan"] },
-      { name: "Topiramate", tier: 1, covered: true, paRequired: false, stepTherapy: false, quantityLimit: false, copay: "$10" },
-      { name: "Propranolol", tier: 1, covered: true, paRequired: false, stepTherapy: false, quantityLimit: false, copay: "$10" },
-      { name: "Amitriptyline", tier: 1, covered: true, paRequired: false, stepTherapy: false, quantityLimit: false, copay: "$10" },
-      { name: "Erenumab (Aimovig)", tier: 3, covered: true, paRequired: true, stepTherapy: true, quantityLimit: true, copay: "$70", alternatives: ["Topiramate"] },
-      { name: "Fremanezumab (Ajovy)", tier: 3, covered: true, paRequired: true, stepTherapy: true, quantityLimit: true, copay: "$70", alternatives: ["Topiramate"] },
-      { name: "Galcanezumab (Emgality)", tier: 3, covered: false, paRequired: true, stepTherapy: true, quantityLimit: true, copay: "Not covered", alternatives: ["Topiramate"] },
-      { name: "Ibuprofen", tier: 1, covered: true, paRequired: false, stepTherapy: false, quantityLimit: false, copay: "$10" },
-      { name: "Naproxen", tier: 1, covered: true, paRequired: false, stepTherapy: false, quantityLimit: false, copay: "$10" },
-      { name: "Ondansetron", tier: 2, covered: true, paRequired: false, stepTherapy: false, quantityLimit: false, copay: "$35" },
-      { name: "Eptinezumab (Vyepti)", tier: 3, covered: true, paRequired: true, stepTherapy: true, quantityLimit: true, copay: "$70", alternatives: ["Erenumab (Aimovig)"] },
-    ],
-  },
-];
 
 /* ─── Helpers ────────────────────────────────────────── */
 const tierColor: Record<number, string> = {
@@ -175,7 +73,7 @@ const tierColor: Record<number, string> = {
   3: "bg-destructive/15 text-destructive border-destructive/30",
 };
 
-/* ─── Sub-components ─────────────────────────────────── */
+/* ─── Pharmacy helpdesk card ─────────────────────────── */
 function PharmacyHelpdeskCard({ plan, isMine = false }: { plan: Plan; isMine?: boolean }) {
   return (
     <Card className={isMine ? "border-primary/20 bg-primary/5" : ""}>
@@ -188,7 +86,7 @@ function PharmacyHelpdeskCard({ plan, isMine = false }: { plan: Plan; isMine?: b
           {isMine && <Badge variant="outline" className="text-xs border-primary/30 text-primary bg-primary/10">Your Plan</Badge>}
         </div>
         <a
-          href={`tel:${plan.pharmacyHelpdesk.replace(/-/g, "")}`}
+          href={`tel:${plan.pharmacyHelpdesk.replace(/[-\s]/g, "")}`}
           className={`block text-lg font-mono font-bold ${isMine ? "text-primary" : "text-foreground"}`}
         >
           {plan.pharmacyHelpdesk}
@@ -203,103 +101,184 @@ function PharmacyHelpdeskCard({ plan, isMine = false }: { plan: Plan; isMine?: b
   );
 }
 
-function FormularyList({ plan }: { plan: Plan }) {
-  const [search, setSearch] = useState("");
-  const [expandedDrug, setExpandedDrug] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
+/* ─── Formulary drug row ─────────────────────────────── */
+function DrugRow({ drug }: { drug: FormularyDrug }) {
+  const [expanded, setExpanded] = useState(false);
+  const copay = drug.copay ?? drug.copayHint ?? "See plan";
+  return (
+    <Card
+      className={`cursor-pointer transition-all ${!drug.covered ? "opacity-70" : ""}`}
+      onClick={() => setExpanded(!expanded)}
+    >
+      <CardContent className="p-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {drug.covered
+              ? <CheckCircle2 className="h-4 w-4 text-[hsl(var(--severity-low))] shrink-0" />
+              : <XCircle className="h-4 w-4 text-destructive shrink-0" />}
+            <div>
+              <span className="font-medium text-sm">{drug.name}</span>
+              {drug.brandNames?.length ? (
+                <span className="text-[10px] text-muted-foreground ml-1.5">({drug.brandNames[0]})</span>
+              ) : null}
+            </div>
+            {drug.paRequired && <AlertTriangle className="h-3.5 w-3.5 text-[hsl(var(--warning))]" />}
+          </div>
+          <div className="flex items-center gap-2">
+            {drug.covered
+              ? <Badge variant="outline" className={`text-xs ${tierColor[drug.tier] ?? tierColor[3]}`}>Tier {drug.tier} · {copay}</Badge>
+              : <Badge variant="outline" className="text-xs border-destructive/30 text-destructive">Not covered</Badge>}
+            {expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+          </div>
+        </div>
 
-  const filtered = plan.formulary.filter((d) =>
-    d.name.toLowerCase().includes(search.toLowerCase())
+        {expanded && (
+          <div className="mt-3 pt-3 border-t border-border/50 space-y-2">
+            {drug.drugClass && (
+              <p className="text-[10px] text-muted-foreground">Class: {drug.drugClass}</p>
+            )}
+            <div className="grid grid-cols-3 gap-2 text-xs text-center">
+              <div className={`rounded p-1.5 ${drug.paRequired ? "bg-[hsl(var(--warning))]/10 text-[hsl(var(--warning))]" : "bg-muted text-muted-foreground"}`}>
+                PA {drug.paRequired ? "Required" : "Not needed"}
+              </div>
+              <div className={`rounded p-1.5 ${drug.stepTherapy ? "bg-[hsl(var(--warning))]/10 text-[hsl(var(--warning))]" : "bg-muted text-muted-foreground"}`}>
+                Step therapy {drug.stepTherapy ? "Yes" : "No"}
+              </div>
+              <div className="rounded p-1.5 bg-muted text-muted-foreground">
+                Qty limit {drug.quantityLimit ? "Yes" : "No"}
+              </div>
+            </div>
+            {drug.notes && <p className="text-xs text-muted-foreground leading-relaxed">{drug.notes}</p>}
+            {drug.alternatives?.length ? (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Covered alternatives:</p>
+                <div className="flex flex-wrap gap-1">
+                  {drug.alternatives.map((alt) => (
+                    <Badge key={alt} variant="secondary" className="text-xs">{alt}</Badge>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
+}
+
+/* ─── Live formulary lookup for a plan ───────────────── */
+function FormularyPanel({ plan }: { plan: Plan }) {
+  const [drugQuery, setDrugQuery] = useState("");
+  const [drugs, setDrugs] = useState<FormularyDrug[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+
+  const loadFormulary = useCallback(async (search?: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, error: fnErr } = await supabase.functions.invoke("insurance-lookup", {
+        body: { action: "plan_formulary", planId: plan.id, search: search || "" },
+      });
+      if (fnErr) throw new Error(fnErr.message);
+      if (!data?.success) throw new Error(data?.error || "Failed to load formulary");
+      setDrugs(data.drugs || []);
+      setLoaded(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Load failed");
+    } finally {
+      setLoading(false);
+    }
+  }, [plan.id]);
+
+  const handleToggle = () => {
+    if (!open && !loaded) loadFormulary();
+    setOpen(!open);
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    loadFormulary(drugQuery);
+  };
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Formulary Drugs</h3>
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs text-muted-foreground">{plan.formularyYear} · {plan.lastUpdated}</span>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setRefreshing(true); setTimeout(() => setRefreshing(false), 1200); }}>
-            <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin text-primary" : "text-muted-foreground"}`} />
-          </Button>
+      <button
+        onClick={handleToggle}
+        className="w-full flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3 text-sm font-medium hover:bg-muted/50 transition-colors"
+      >
+        <span className="flex items-center gap-2">
+          <Pill className="h-4 w-4 text-primary" />
+          View Formulary Drugs
+        </span>
+        {open ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+      </button>
+
+      {open && (
+        <div className="space-y-3">
+          {/* Drug search within formulary */}
+          <form onSubmit={handleSearch} className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search any drug (e.g. Ubrogepant, Topiramate)…"
+                value={drugQuery}
+                onChange={(e) => setDrugQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <Button type="submit" disabled={loading} className="shrink-0">
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Search"}
+            </Button>
+            {drugQuery && (
+              <Button type="button" variant="ghost" size="icon" onClick={() => { setDrugQuery(""); loadFormulary(""); }}>
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </form>
+
+          {loading && (
+            <div className="flex items-center gap-2 px-1 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              Loading formulary…
+            </div>
+          )}
+
+          {error && (
+            <div className="flex items-start gap-2 text-xs text-destructive">
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" /> {error}
+            </div>
+          )}
+
+          {!loading && loaded && drugs.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-4">No drugs found. Try a different search term.</p>
+          )}
+
+          {!loading && drugs.length > 0 && (
+            <div className="space-y-2">
+              {drugs.map((drug) => (
+                <DrugRow key={drug.name} drug={drug} />
+              ))}
+              <p className="text-[10px] text-muted-foreground flex items-center gap-1 px-1 pt-1">
+                <Info className="h-3 w-3 shrink-0" />
+                Formulary data is a reference guide. Verify with your plan for precise copay/coverage details.
+              </p>
+            </div>
+          )}
         </div>
-      </div>
-
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Search medications…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
-      </div>
-
-      <div className="space-y-2">
-        {filtered.map((drug) => {
-          const isExpanded = expandedDrug === drug.name;
-          return (
-            <Card
-              key={drug.name}
-              className={`cursor-pointer transition-all ${!drug.covered ? "opacity-70" : ""}`}
-              onClick={() => setExpandedDrug(isExpanded ? null : drug.name)}
-            >
-              <CardContent className="p-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {drug.covered
-                      ? <CheckCircle2 className="h-4 w-4 text-[hsl(var(--severity-low))] shrink-0" />
-                      : <XCircle className="h-4 w-4 text-destructive shrink-0" />}
-                    <span className="font-medium text-sm">{drug.name}</span>
-                    {drug.paRequired && <AlertTriangle className="h-3.5 w-3.5 text-[hsl(var(--warning))]" />}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {drug.covered
-                      ? <Badge variant="outline" className={`text-xs ${tierColor[drug.tier]}`}>Tier {drug.tier} · {drug.copay}</Badge>
-                      : <Badge variant="outline" className="text-xs border-destructive/30 text-destructive">Not covered</Badge>}
-                    {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-                  </div>
-                </div>
-
-                {isExpanded && (
-                  <div className="mt-3 pt-3 border-t border-border/50 space-y-2">
-                    <div className="grid grid-cols-3 gap-2 text-xs text-center">
-                      <div className={`rounded p-1.5 ${drug.paRequired ? "bg-[hsl(var(--warning))]/10 text-[hsl(var(--warning))]" : "bg-muted text-muted-foreground"}`}>
-                        PA {drug.paRequired ? "Required" : "Not needed"}
-                      </div>
-                      <div className={`rounded p-1.5 ${drug.stepTherapy ? "bg-[hsl(var(--warning))]/10 text-[hsl(var(--warning))]" : "bg-muted text-muted-foreground"}`}>
-                        Step therapy {drug.stepTherapy ? "Yes" : "No"}
-                      </div>
-                      <div className="rounded p-1.5 bg-muted text-muted-foreground">
-                        Qty limit {drug.quantityLimit ? "Yes" : "No"}
-                      </div>
-                    </div>
-                    {drug.alternatives && drug.alternatives.length > 0 && (
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Covered alternatives:</p>
-                        <div className="flex flex-wrap gap-1">
-                          {drug.alternatives.map((alt) => (
-                            <Badge key={alt} variant="secondary" className="text-xs">{alt}</Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
-        {filtered.length === 0 && (
-          <div className="text-center py-8 text-muted-foreground text-sm">
-            No formulary results for "{search}"
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }
 
+/* ─── My Plan Tab ────────────────────────────────────── */
 function MyPlanTab() {
   const [showPlanDetails, setShowPlanDetails] = useState(false);
 
   return (
     <div className="space-y-4">
-      {/* Insurance Card */}
       <Card className="border-primary/20 bg-primary/5">
         <CardContent className="p-4 space-y-3">
           <div className="flex items-start justify-between">
@@ -360,71 +339,143 @@ function MyPlanTab() {
         </CardContent>
       </Card>
 
-      {/* Pharmacy Helpdesk */}
       <PharmacyHelpdeskCard plan={MY_PLAN} isMine />
-
-      {/* Formulary */}
-      <FormularyList plan={MY_PLAN} />
+      <FormularyPanel plan={MY_PLAN} />
     </div>
   );
 }
 
+/* ─── Compare Plans Tab ──────────────────────────────── */
 function ComparePlansTab() {
-  const [planSearch, setPlanSearch] = useState("");
+  const [query, setQuery] = useState("");
+  const [zipCode, setZipCode] = useState("");
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [searched, setSearched] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
 
-  const filteredPlans = OTHER_PLANS.filter(
-    (p) =>
-      p.carrier.toLowerCase().includes(planSearch.toLowerCase()) ||
-      p.planName.toLowerCase().includes(planSearch.toLowerCase())
-  );
+  const searchPlans = async () => {
+    setLoading(true);
+    setError(null);
+    setSelectedPlan(null);
+    setSearched(true);
+    try {
+      const { data, error: fnErr } = await supabase.functions.invoke("insurance-lookup", {
+        body: { action: "search_plans", query, zipCode },
+      });
+      if (fnErr) throw new Error(fnErr.message);
+      if (!data?.success) throw new Error(data?.error || "Search failed");
+      setPlans(data.plans || []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Search failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    searchPlans();
+  };
 
   return (
     <div className="space-y-4">
-      <div className="space-y-1">
-        <p className="text-sm text-muted-foreground">Search other insurance plans to compare formulary coverage and pharmacy support numbers.</p>
-      </div>
+      <p className="text-sm text-muted-foreground">
+        Search any insurance plan — commercial, Medicare, Medicaid — and view drug formulary coverage.
+      </p>
 
-      {/* Plan search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search by carrier or plan name…"
-          value={planSearch}
-          onChange={(e) => setPlanSearch(e.target.value)}
-          className="pl-9"
-        />
-      </div>
+      {/* Search form */}
+      <form onSubmit={handleSubmit} className="space-y-2">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Carrier or plan name (e.g. Aetna, Cigna, Medicare)…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <div className="flex gap-2">
+          <Input
+            placeholder="ZIP code (optional)"
+            value={zipCode}
+            onChange={(e) => setZipCode(e.target.value)}
+            className="w-36 shrink-0"
+            maxLength={5}
+          />
+          <Button type="submit" disabled={loading} className="flex-1">
+            {loading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Searching…</> : "Search Plans"}
+          </Button>
+        </div>
+      </form>
 
-      {/* Plan cards */}
-      {!selectedPlan && (
+      {/* Quick carrier chips */}
+      {!searched && (
+        <div className="space-y-1.5">
+          <p className="text-xs text-muted-foreground font-medium">Browse by carrier:</p>
+          <div className="flex flex-wrap gap-1.5">
+            {["Blue Cross Blue Shield", "Aetna", "Cigna", "UnitedHealthcare", "Humana", "Kaiser Permanente", "Medicaid", "Medicare"].map((c) => (
+              <button
+                key={c}
+                onClick={() => { setQuery(c); searchPlans(); }}
+                className="text-xs rounded-full border border-border bg-card px-3 py-1.5 hover:bg-primary/5 hover:border-primary/30 transition-all"
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Error */}
+      {error && (
+        <Card className="border-destructive/30 bg-destructive/5">
+          <CardContent className="p-4 flex items-start gap-3">
+            <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+            <p className="text-sm text-destructive">{error}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Plan list */}
+      {!selectedPlan && searched && !loading && (
         <div className="space-y-2">
-          {filteredPlans.map((plan) => (
-            <Card key={plan.id} className="cursor-pointer hover:border-primary/40 transition-colors" onClick={() => setSelectedPlan(plan)}>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <div>
-                      <p className="font-semibold text-sm">{plan.carrier}</p>
-                      <p className="text-xs text-muted-foreground">{plan.planName}</p>
+          {plans.length === 0 ? (
+            <p className="text-center text-sm text-muted-foreground py-6">No plans found. Try a broader search.</p>
+          ) : (
+            <>
+              <p className="text-xs text-muted-foreground">{plans.length} plan{plans.length !== 1 ? "s" : ""} found</p>
+              {plans.map((plan) => (
+                <Card
+                  key={plan.id}
+                  className="cursor-pointer hover:border-primary/40 transition-colors"
+                  onClick={() => setSelectedPlan(plan)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <div>
+                          <p className="font-semibold text-sm">{plan.carrier}</p>
+                          <p className="text-xs text-muted-foreground">{plan.planName}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {plan.state && <span className="text-xs text-muted-foreground">{plan.state}</span>}
+                        <Badge variant="outline" className="text-xs">{plan.planType}</Badge>
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs">{plan.planType}</Badge>
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                </div>
-                <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-center">
-                  <div className="rounded bg-[hsl(var(--severity-low))]/10 p-1 text-[hsl(var(--severity-low))]">T1 {plan.tier1}</div>
-                  <div className="rounded bg-[hsl(var(--warning))]/10 p-1 text-[hsl(var(--warning))]">T2 {plan.tier2}</div>
-                  <div className="rounded bg-destructive/10 p-1 text-destructive">T3 {plan.tier3}</div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-          {filteredPlans.length === 0 && (
-            <div className="text-center py-8 text-muted-foreground text-sm">No plans found for "{planSearch}"</div>
+                    <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-center">
+                      <div className="rounded bg-[hsl(var(--severity-low))]/10 p-1 text-[hsl(var(--severity-low))]">T1 {plan.tier1}</div>
+                      <div className="rounded bg-[hsl(var(--warning))]/10 p-1 text-[hsl(var(--warning))]">T2 {plan.tier2}</div>
+                      <div className="rounded bg-destructive/10 p-1 text-destructive">T3 {plan.tier3}</div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </>
           )}
         </div>
       )}
@@ -432,23 +483,27 @@ function ComparePlansTab() {
       {/* Selected plan detail */}
       {selectedPlan && (
         <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <button
-              className="text-xs text-primary flex items-center gap-1"
-              onClick={() => setSelectedPlan(null)}
-            >
-              <ChevronDown className="h-3.5 w-3.5 rotate-90" /> Back to plans
-            </button>
-          </div>
+          <button
+            className="text-xs text-primary flex items-center gap-1"
+            onClick={() => setSelectedPlan(null)}
+          >
+            <ChevronDown className="h-3.5 w-3.5 rotate-90" /> Back to results
+          </button>
 
-          <Card className="border-border">
+          <Card>
             <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Building2 className="h-5 w-5 text-muted-foreground" />
-                <div>
-                  <p className="font-semibold">{selectedPlan.carrier}</p>
-                  <p className="text-sm text-muted-foreground">{selectedPlan.planName} · {selectedPlan.planType}</p>
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="font-semibold">{selectedPlan.carrier}</p>
+                    <p className="text-sm text-muted-foreground">{selectedPlan.planName} · {selectedPlan.planType}</p>
+                    {selectedPlan.state && (
+                      <p className="text-xs text-muted-foreground">{selectedPlan.state}</p>
+                    )}
+                  </div>
                 </div>
+                <Badge variant="outline" className="text-xs">{selectedPlan.planType}</Badge>
               </div>
               <div className="grid grid-cols-3 gap-2 text-sm text-center">
                 <div className="rounded-lg bg-[hsl(var(--severity-low))]/10 p-2 border border-[hsl(var(--severity-low))]/20">
@@ -468,7 +523,9 @@ function ComparePlansTab() {
           </Card>
 
           <PharmacyHelpdeskCard plan={selectedPlan} />
-          <FormularyList plan={selectedPlan} />
+
+          {/* Live formulary lookup */}
+          <FormularyPanel plan={selectedPlan} />
         </div>
       )}
     </div>
