@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, Calendar, Pill, ShieldCheck, ClipboardList, Moon, Sun } from "lucide-react";
+import { Home, Calendar, Pill, ShieldCheck, ClipboardList, Moon, Sun, Stethoscope } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,8 +9,9 @@ const navItems = [
   { to: "/", icon: Home, label: "Home" },
   { to: "/history", icon: ClipboardList, label: "History" },
   { to: "/calendar", icon: Calendar, label: "Calendar" },
-  { to: "/medications", icon: Pill, label: "Medications" },
+  { to: "/medications", icon: Pill, label: "Meds" },
   { to: "/insurance", icon: ShieldCheck, label: "Insurance" },
+  { to: "/find-care", icon: Stethoscope, label: "Find Care" },
 ];
 
 
