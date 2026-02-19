@@ -151,11 +151,19 @@ export default function MedicationTracker({ hideHeader }: { hideHeader?: boolean
   const [frequency, setFrequency] = useState("");
   const [supplementBase, setSupplementBase] = useState("");
   const [supplementSubtype, setSupplementSubtype] = useState("");
+  const [customSupplementName, setCustomSupplementName] = useState("");
 
   const isSupplementClass = classification === "Supplement";
   const subtypeOptions = supplementBase ? SUPPLEMENT_SUBTYPES[supplementBase] ?? [] : [];
+  const isOtherSupplementBase = supplementBase === "Other";
+  const isOtherSubtype = supplementSubtype === "Other Supplement";
+
   const resolvedName = isSupplementClass
-    ? supplementSubtype || supplementBase || name
+    ? (isOtherSupplementBase || isOtherSubtype)
+      ? customSupplementName || supplementBase
+      : supplementSubtype || supplementBase || name
+    : classification === "Other"
+    ? name
     : name;
 
   const activeMeds = meds.filter((m) => m.active);
@@ -169,7 +177,7 @@ export default function MedicationTracker({ hideHeader }: { hideHeader?: boolean
 
   const resetForm = () => {
     setName(""); setDosage(""); setClassification(""); setFrequency("");
-    setSupplementBase(""); setSupplementSubtype("");
+    setSupplementBase(""); setSupplementSubtype(""); setCustomSupplementName("");
     setAddConflictWarning(null);
   };
 
@@ -319,6 +327,7 @@ export default function MedicationTracker({ hideHeader }: { hideHeader?: boolean
                 setClassification(v);
                 setSupplementBase("");
                 setSupplementSubtype("");
+                setCustomSupplementName("");
                 setName("");
               }}>
                 <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
@@ -338,6 +347,7 @@ export default function MedicationTracker({ hideHeader }: { hideHeader?: boolean
                   <Select value={supplementBase} onValueChange={(v) => {
                     setSupplementBase(v);
                     setSupplementSubtype("");
+                    setCustomSupplementName("");
                   }}>
                     <SelectTrigger><SelectValue placeholder="e.g. Magnesium, Vitamin B2…" /></SelectTrigger>
                     <SelectContent>
@@ -348,13 +358,17 @@ export default function MedicationTracker({ hideHeader }: { hideHeader?: boolean
                   </Select>
                 </div>
 
-                {supplementBase && subtypeOptions.length > 0 && (
+                {/* Subtype dropdown — only when not "Other" base */}
+                {supplementBase && !isOtherSupplementBase && subtypeOptions.length > 0 && (
                   <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground">
                       Specific Form{" "}
                       <span className="text-muted-foreground/60">(e.g. Glycinate vs Oxide)</span>
                     </Label>
-                    <Select value={supplementSubtype} onValueChange={setSupplementSubtype}>
+                    <Select value={supplementSubtype} onValueChange={(v) => {
+                      setSupplementSubtype(v);
+                      if (v !== "Other Supplement") setCustomSupplementName("");
+                    }}>
                       <SelectTrigger><SelectValue placeholder="Select specific form" /></SelectTrigger>
                       <SelectContent>
                         {subtypeOptions.map((s) => (
@@ -365,9 +379,23 @@ export default function MedicationTracker({ hideHeader }: { hideHeader?: boolean
                   </div>
                 )}
 
-                {(supplementSubtype || supplementBase) && (
+                {/* Free-text input when "Other" base or "Other Supplement" subtype */}
+                {(isOtherSupplementBase || isOtherSubtype) && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Supplement Name</Label>
+                    <Input
+                      placeholder="e.g. Ashwagandha, L-Theanine, Butterbur…"
+                      value={customSupplementName}
+                      onChange={(e) => setCustomSupplementName(e.target.value)}
+                      autoFocus
+                    />
+                  </div>
+                )}
+
+                {/* Preview */}
+                {resolvedName && (
                   <p className="text-xs text-muted-foreground bg-muted rounded px-2 py-1.5">
-                    Will be saved as: <span className="font-medium text-foreground">{supplementSubtype || supplementBase}</span>
+                    Will be saved as: <span className="font-medium text-foreground">{resolvedName}</span>
                   </p>
                 )}
               </>
