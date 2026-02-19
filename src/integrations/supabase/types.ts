@@ -71,6 +71,66 @@ export type Database = {
         }
         Relationships: []
       }
+      insurance_plans: {
+        Row: {
+          carrier: string
+          created_at: string
+          effective_date: string | null
+          group_number: string | null
+          id: string
+          is_active: boolean
+          member_id: string | null
+          notes: string | null
+          phone: string | null
+          plan_name: string | null
+          plan_type: string
+          rx_bin: string | null
+          rx_group: string | null
+          rx_pcn: string | null
+          updated_at: string
+          user_id: string
+          website: string | null
+        }
+        Insert: {
+          carrier: string
+          created_at?: string
+          effective_date?: string | null
+          group_number?: string | null
+          id?: string
+          is_active?: boolean
+          member_id?: string | null
+          notes?: string | null
+          phone?: string | null
+          plan_name?: string | null
+          plan_type?: string
+          rx_bin?: string | null
+          rx_group?: string | null
+          rx_pcn?: string | null
+          updated_at?: string
+          user_id: string
+          website?: string | null
+        }
+        Update: {
+          carrier?: string
+          created_at?: string
+          effective_date?: string | null
+          group_number?: string | null
+          id?: string
+          is_active?: boolean
+          member_id?: string | null
+          notes?: string | null
+          phone?: string | null
+          plan_name?: string | null
+          plan_type?: string
+          rx_bin?: string | null
+          rx_group?: string | null
+          rx_pcn?: string | null
+          updated_at?: string
+          user_id?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
       medication_logs: {
         Row: {
           created_at: string
