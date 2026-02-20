@@ -72,7 +72,7 @@ export default function LogMigraineForm({ onSave, onClose, initialDate }: Props)
       notes,
       isUserEntry: true,
     });
-    onClose();
+    // onClose is handled by the parent after processing the entry
   };
 
   return (
