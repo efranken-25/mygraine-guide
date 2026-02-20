@@ -84,15 +84,16 @@ async function exportClinicalPDF(
   stats: ReturnType<typeof computeStats>,
   aiReport: AIReport | null
 ) {
-  const A4_W = 210;
-  const A4_H = 297;
-  const M = 14; // margin
-  const CW = A4_W - M * 2; // content width
-  const LH = 5.2; // line height
-  const SECTION_GAP = 7;
+  try {
+    const A4_W = 210;
+    const A4_H = 297;
+    const M = 14; // margin
+    const CW = A4_W - M * 2; // content width
+    const LH = 5.2; // line height
+    const SECTION_GAP = 7;
 
-  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-  let y = M;
+    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    let y = M;
 
   // ── COLOUR PALETTE (grayscale only, colour only for severity) ─────────────
   const C = {
@@ -941,10 +942,16 @@ async function exportClinicalPDF(
       A4_H - 4
     );
     setTxt([140, 140, 140]);
-    pdf.text(`Page ${p} of ${totalPages}`, A4_W - M, A4_H - 4, { align: "right" });
+    const pageText = `Page ${p} of ${totalPages}`;
+    const pageTextWidth = pdf.getTextWidth(pageText);
+    pdf.text(pageText, A4_W - M - pageTextWidth, A4_H - 4);
   }
 
   pdf.save(`migraine-report-${format(dateFrom, "yyyy-MM-dd")}-to-${format(dateTo, "yyyy-MM-dd")}.pdf`);
+  } catch (error) {
+    console.error("PDF generation error:", error);
+    throw error;
+  }
 }
 
 // ─── Stats helper (shared) ────────────────────────────────────────────────────

@@ -162,7 +162,21 @@ export default function MigraineCalendar() {
     setSelectedDay(null);
   };
 
-  const monthMigraines = MIGRAINE_DATA.filter((m) => m.date >= monthStart && m.date <= monthEnd);
+  // Calculate month migraines from both MIGRAINE_DATA and userEntries
+  const allMonthEntries = [
+    ...MIGRAINE_DATA.filter((m) => m.date >= monthStart && m.date <= monthEnd && !deletedSampleDates.has(format(m.date, "yyyy-MM-dd"))),
+    ...userEntries.filter((e) => {
+      try {
+        const entryDate = e.date.includes("/") ? new Date(e.date) : new Date();
+        const parsed = e.date.includes("-") ? new Date(e.date) : new Date(new Date().getFullYear(), new Date().getMonth(), parseInt(e.date.split(" ")[1]));
+        return parsed >= monthStart && parsed <= monthEnd;
+      } catch {
+        return false;
+      }
+    })
+  ];
+  
+  const monthMigraines = allMonthEntries;
   const avgSeverity = monthMigraines.length
     ? (monthMigraines.reduce((a, m) => a + m.severity, 0) / monthMigraines.length).toFixed(1)
     : "—";
