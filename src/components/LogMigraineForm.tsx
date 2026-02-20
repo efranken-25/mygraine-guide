@@ -25,6 +25,7 @@ export interface UserEntry {
   triggers: string[];
   meds: string[];
   medEffectiveness?: Record<string, MedEffectiveness>;
+  hormonalStatus?: string[];
   weather: string;
   sleep: number;
   caffeine: number;
@@ -55,6 +56,7 @@ export default function LogMigraineForm({ onSave, onClose, initialDate }: Props)
   const [caffeine, setCaffeine] = useState(0);
   const [notes, setNotes] = useState("");
   const [skippedMeal, setSkippedMeal] = useState(false);
+  const [hormonalStatus, setHormonalStatus] = useState<string[]>([]);
   const [medEffectiveness, setMedEffectiveness] = useState<Record<string, MedEffectiveness>>({});
 
   const activeMeds = meds.filter((m) => m !== "None");
@@ -98,6 +100,7 @@ export default function LogMigraineForm({ onSave, onClose, initialDate }: Props)
       caffeine,
       stress: severity >= 8 ? "Very High" : severity >= 5 ? "High" : "Moderate",
       skippedMeal,
+      hormonalStatus: hormonalStatus.length > 0 ? hormonalStatus : undefined,
       notes,
       isUserEntry: true,
     });
@@ -290,6 +293,26 @@ export default function LogMigraineForm({ onSave, onClose, initialDate }: Props)
               {skippedMeal && <span className="text-white text-[10px]">✓</span>}
             </span>
           </button>
+
+          {/* Hormonal status */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Hormonal status</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {["Pregnant", "Breastfeeding", "Menopausal"].map((status) => (
+                <button
+                  key={status}
+                  onClick={() => toggle(hormonalStatus, status, setHormonalStatus)}
+                  className={`px-3 py-1.5 rounded-full text-xs transition-all border ${
+                    hormonalStatus.includes(status)
+                      ? "bg-primary/15 text-primary border-primary/40"
+                      : "bg-muted text-muted-foreground border-transparent"
+                  }`}
+                >
+                  {status}
+                </button>
+              ))}
+            </div>
+          </div>
 
           {/* Notes */}
           <div className="space-y-1.5">
