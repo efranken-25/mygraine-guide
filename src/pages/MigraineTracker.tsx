@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Zap, AlertTriangle, ChevronRight, FlaskConical } from "lucide-react";
+import { Plus, Zap, AlertTriangle, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import LogMigraineForm, { UserEntry } from "@/components/LogMigraineForm";
@@ -261,7 +261,7 @@ function durationStr(min: number) {
 }
 
 export default function MigraineTracker() {
-  const { entries, addEntry, loadDemoData, isDemoLoaded } = useEntries();
+  const { entries, addEntry } = useEntries();
   const [showForm, setShowForm] = useState(false);
   const [alertResult, setAlertResult] = useState<AlertResult | null>(null);
 
@@ -298,16 +298,6 @@ export default function MigraineTracker() {
       >
         <Plus className="h-5 w-5" /> Log a Migraine
       </Button>
-
-      {entries.length === 0 && !isDemoLoaded && (
-        <Button
-          variant="outline"
-          className="w-full flex items-center gap-2 rounded-2xl"
-          onClick={loadDemoData}
-        >
-          <FlaskConical className="h-4 w-4" /> Load Demo Data
-        </Button>
-      )}
 
       {showForm && (
         <LogMigraineForm
