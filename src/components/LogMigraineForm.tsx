@@ -55,6 +55,8 @@ export default function LogMigraineForm({ onSave, onClose, initialDate }: Props)
   const [sleep, setSleep] = useState(7);
   const [caffeine, setCaffeine] = useState(0);
   const [notes, setNotes] = useState("");
+  const [sleepUnknown, setSleepUnknown] = useState(false);
+  const [caffeineUnknown, setCaffeineUnknown] = useState(false);
   const [skippedMeal, setSkippedMeal] = useState(false);
   const [hormonalStatus, setHormonalStatus] = useState<string[]>([]);
   const [medEffectiveness, setMedEffectiveness] = useState<Record<string, MedEffectiveness>>({});
@@ -204,7 +206,23 @@ export default function LogMigraineForm({ onSave, onClose, initialDate }: Props)
           <div className="space-y-2">
             <Label className="text-sm font-medium">Possible triggers</Label>
             <div className="flex flex-wrap gap-1.5">
-              {TRIGGER_OPTIONS.map((t) => (
+              <button
+                onClick={() => {
+                  if (triggers.includes("Unknown")) {
+                    setTriggers([]);
+                  } else {
+                    setTriggers(["Unknown"]);
+                  }
+                }}
+                className={`px-3 py-1.5 rounded-full text-xs transition-all border ${
+                  triggers.includes("Unknown")
+                    ? "bg-muted-foreground/20 text-foreground border-muted-foreground/40"
+                    : "bg-muted text-muted-foreground border-transparent"
+                }`}
+              >
+                I don't know
+              </button>
+              {!triggers.includes("Unknown") && TRIGGER_OPTIONS.map((t) => (
                 <button key={t} onClick={() => toggle(triggers, t, setTriggers)}
                   className={`px-3 py-1.5 rounded-full text-xs transition-all border ${triggers.includes(t) ? "bg-[hsl(var(--warning))]/15 text-[hsl(var(--warning))] border-[hsl(var(--warning))]/40" : "bg-muted text-muted-foreground border-transparent"}`}>
                   {t}
@@ -217,7 +235,23 @@ export default function LogMigraineForm({ onSave, onClose, initialDate }: Props)
           <div className="space-y-2">
             <Label className="text-sm font-medium">Rescue medications taken</Label>
             <div className="flex flex-wrap gap-1.5">
-              {MED_OPTIONS.map((m) => (
+              <button
+                onClick={() => {
+                  if (meds.includes("Unknown")) {
+                    setMeds([]);
+                  } else {
+                    setMeds(["Unknown"]);
+                  }
+                }}
+                className={`px-3 py-1.5 rounded-full text-xs transition-all border ${
+                  meds.includes("Unknown")
+                    ? "bg-muted-foreground/20 text-foreground border-muted-foreground/40"
+                    : "bg-muted text-muted-foreground border-transparent"
+                }`}
+              >
+                I don't know
+              </button>
+              {!meds.includes("Unknown") && MED_OPTIONS.map((m) => (
                 <button key={m} onClick={() => toggle(meds, m, setMeds)}
                   className={`px-3 py-1.5 rounded-full text-xs transition-all border ${meds.includes(m) ? "bg-[hsl(var(--severity-low))]/15 text-[hsl(var(--severity-low))] border-[hsl(var(--severity-low))]/40" : "bg-muted text-muted-foreground border-transparent"}`}>
                   {m}
@@ -291,11 +325,35 @@ export default function LogMigraineForm({ onSave, onClose, initialDate }: Props)
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-sm font-medium">Sleep last night (h)</Label>
-              <Input type="number" min={0} max={24} step={0.5} value={sleep} onChange={(e) => setSleep(Number(e.target.value))} />
+              {sleepUnknown ? (
+                <button
+                  onClick={() => setSleepUnknown(false)}
+                  className="w-full px-3 py-2 rounded-md text-xs bg-muted-foreground/20 text-foreground border border-muted-foreground/40 text-center"
+                >
+                  I don't know ✕
+                </button>
+              ) : (
+                <div className="flex gap-1.5">
+                  <Input type="number" min={0} max={24} step={0.5} value={sleep} onChange={(e) => setSleep(Number(e.target.value))} className="flex-1" />
+                  <button onClick={() => setSleepUnknown(true)} className="px-2 py-1 rounded-md text-[10px] bg-muted text-muted-foreground border border-transparent hover:border-muted-foreground/30 shrink-0">?</button>
+                </div>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label className="text-sm font-medium">Caffeine (mg)</Label>
-              <Input type="number" min={0} max={1000} value={caffeine} onChange={(e) => setCaffeine(Number(e.target.value))} />
+              {caffeineUnknown ? (
+                <button
+                  onClick={() => setCaffeineUnknown(false)}
+                  className="w-full px-3 py-2 rounded-md text-xs bg-muted-foreground/20 text-foreground border border-muted-foreground/40 text-center"
+                >
+                  I don't know ✕
+                </button>
+              ) : (
+                <div className="flex gap-1.5">
+                  <Input type="number" min={0} max={1000} value={caffeine} onChange={(e) => setCaffeine(Number(e.target.value))} className="flex-1" />
+                  <button onClick={() => setCaffeineUnknown(true)} className="px-2 py-1 rounded-md text-[10px] bg-muted text-muted-foreground border border-transparent hover:border-muted-foreground/30 shrink-0">?</button>
+                </div>
+              )}
             </div>
           </div>
 
