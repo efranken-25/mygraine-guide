@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,10 +8,8 @@ import {
   MapPin, Star, Clock, Phone, Calendar, Search,
   ChevronDown, ChevronUp, CheckCircle2, AlertCircle,
   Navigation, ExternalLink, ShieldCheck, Zap, XCircle,
-  Stethoscope, FlaskConical, Loader2, Info,
+  Stethoscope, FlaskConical, Info,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/lib/auth";
 
 /* ─── PBM / pharmacy network map ─────────────────────────────────────────────
    Maps lowercase carrier/PBM name keywords → in-network pharmacy chains.
@@ -224,7 +222,7 @@ function DoctorCard({ doc, isExpanded, onToggle }: { doc: Doctor; isExpanded: bo
 function NeurologistsTab() {
   const [zip, setZip] = useState("");
   const [submittedZip, setSubmittedZip] = useState("");
-  const [filter, setFilter] = useState<DoctorFilter>("In-Network Only");
+  const [filter, setFilter] = useState<DoctorFilter>("All");
   const [expandedDoc, setExpandedDoc] = useState<number | null>(null);
   const [searched, setSearched] = useState(false);
 
@@ -398,13 +396,11 @@ const PHARMACY_FILTERS = ["All", "In-Network Only", "24hr", "Drive-Thru", "Speci
 type PharmacyFilter = typeof PHARMACY_FILTERS[number];
 
 function PharmaciesTab() {
-  const { user } = useAuth();
   const [zip, setZip] = useState("");
   const [submittedZip, setSubmittedZip] = useState("");
-  const [filter, setFilter] = useState<PharmacyFilter>("In-Network Only");
+  const [filter, setFilter] = useState<PharmacyFilter>("All");
   const [searched, setSearched] = useState(false);
   const [rxPlan, setRxPlan] = useState<SavedPlan | null>(null);
-  const [loadingPlan, setLoadingPlan] = useState(true);
 
   const handleSearch = () => {
     const clean = zip.trim();
@@ -413,21 +409,16 @@ function PharmaciesTab() {
     setSearched(true);
   };
 
-  const loadRxPlan = useCallback(async () => {
-    if (!user) { setLoadingPlan(false); return; }
-    const { data } = await supabase
-      .from("insurance_plans")
-      .select("id, plan_type, carrier, plan_name")
-      .eq("user_id", user.id)
-      .eq("plan_type", "pharmacy")
-      .eq("is_active", true)
-      .limit(1)
-      .maybeSingle();
-    setRxPlan(data as SavedPlan | null);
-    setLoadingPlan(false);
-  }, [user]);
-
-  useEffect(() => { loadRxPlan(); }, [loadRxPlan]);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("migraine_insurance_plans");
+      if (raw) {
+        const plans = JSON.parse(raw) as SavedPlan[];
+        const rxMatch = plans.find((p) => p.plan_type === "pharmacy");
+        if (rxMatch) setRxPlan(rxMatch);
+      }
+    } catch { /* ignore */ }
+  }, []);
 
   const inNetworkChains: string[] | null = rxPlan ? getInNetworkChains(rxPlan.carrier) : null;
 
@@ -459,11 +450,7 @@ function PharmaciesTab() {
   return (
     <div className="space-y-4">
       {/* Plan banner */}
-      {loadingPlan ? (
-        <div className="flex items-center justify-center py-4">
-          <Loader2 className="h-4 w-4 animate-spin text-primary" />
-        </div>
-      ) : rxPlan ? (
+      {rxPlan ? (
         <Card className="border-[hsl(var(--severity-low))]/20 bg-[hsl(var(--severity-low))]/5">
           <CardContent className="p-3 flex items-center gap-3">
             <FlaskConical className="h-5 w-5 text-[hsl(var(--severity-low))] shrink-0" />
