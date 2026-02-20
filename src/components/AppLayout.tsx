@@ -1,9 +1,12 @@
 import { ReactNode, useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, Calendar, Pill, ShieldCheck, ClipboardList, Moon, Sun, Stethoscope } from "lucide-react";
+import { Home, Calendar, Pill, ShieldCheck, ClipboardList, Moon, Sun, Stethoscope, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 const navItems = [
   { to: "/", icon: Home, label: "Home" },
@@ -24,6 +27,18 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     }
     return false;
   });
+  const [muteAlerts, setMuteAlerts] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("mute-medical-alerts") === "true";
+    }
+    return false;
+  });
+
+  const toggleMuteAlerts = (v: boolean) => {
+    setMuteAlerts(v);
+    localStorage.setItem("mute-medical-alerts", v ? "true" : "false");
+    window.dispatchEvent(new Event("mute-medical-alerts-changed"));
+  };
 
   useEffect(() => {
     if (dark) {
@@ -48,15 +63,36 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               MyGraineGuide
             </span>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setDark(d => !d)}
-            className="rounded-xl text-muted-foreground hover:text-foreground"
-            aria-label="Toggle dark mode"
-          >
-            {dark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-          </Button>
+          <div className="flex items-center gap-1">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-xl text-muted-foreground hover:text-foreground"
+                  aria-label="Settings"
+                >
+                  <Settings className="h-5 w-5" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-64 p-4 space-y-4">
+                <p className="text-sm font-semibold">Settings</p>
+                <div className="flex items-center justify-between gap-3">
+                  <Label htmlFor="dark-toggle" className="text-sm cursor-pointer">Dark mode</Label>
+                  <Switch id="dark-toggle" checked={dark} onCheckedChange={setDark} />
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <Label htmlFor="mute-alerts" className="text-sm cursor-pointer">Mute severity alerts</Label>
+                    <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug">
+                      Disable the "see a doctor" pop-up after logging
+                    </p>
+                  </div>
+                  <Switch id="mute-alerts" checked={muteAlerts} onCheckedChange={toggleMuteAlerts} />
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
       </header>
 
