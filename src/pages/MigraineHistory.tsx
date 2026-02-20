@@ -1,13 +1,16 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Brain, Clock, Zap, TrendingUp, TrendingDown, Calendar, Pill, ArrowRight, Droplets, Wind, AlertTriangle } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Brain, Clock, Zap, TrendingUp, TrendingDown, Calendar, Pill, ArrowRight, Droplets, Wind, AlertTriangle, FileText } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
+import ClinicalReport from "@/components/ClinicalReport";
 
 const MOCK_ENTRIES = [
-  { id: 1, date: "Mar 26", severity: 10, durationMin: 213, area: "Periorbital", symptoms: ["Severe Head Pain", "Nausea", "Light Sensitivity"], triggers: ["Travel", "Stress", "Caffeine"], meds: ["Eletriptan"], weather: "Cloudy", sleep: 6.7, caffeine: 151, stress: "Very High", skippedMeal: false, notes: "Travel day; irregular meals" },
+  { id: 1, date: "Mar 26", severity: 10, durationMin: 213, area: "Periorbital", symptoms: ["Severe Head Pain", "Nausea", "Light Sensitivity"], triggers: ["Travel", "Stress", "Caffeine"], meds: ["Eletriptan"], weather: "Cloudy", sleep: 6.7, caffeine: 151, stress: "Very High", skippedMeal: false, notes: "Travel day; irregular meals", hormonalStatus: ["Menstruating"] },
   { id: 2, date: "Mar 24", severity: 8, durationMin: 66, area: "Occipital", symptoms: ["Throbbing Pain", "Neck Tension", "Nausea"], triggers: ["Caffeine", "Poor Sleep", "Rain/Pressure"], meds: ["Rizatriptan"], weather: "Light Rain", sleep: 4.4, caffeine: 224, stress: "Very High", skippedMeal: false, notes: "Travel day; irregular meals" },
-  { id: 3, date: "Mar 21", severity: 7, durationMin: 149, area: "Right Orbital", symptoms: ["Eye Pain", "Light Sensitivity", "Throbbing"], triggers: ["Bright Light", "Skipped Meal", "Hormonal/Menstrual"], meds: ["Ibuprofen"], weather: "Clear", sleep: 7.3, caffeine: 94, stress: "High", skippedMeal: true, notes: "Lots of meetings in bright room" },
+  { id: 3, date: "Mar 21", severity: 7, durationMin: 149, area: "Right Orbital", symptoms: ["Eye Pain", "Light Sensitivity", "Throbbing"], triggers: ["Bright Light", "Skipped Meal", "Hormonal/Menstrual"], meds: ["Ibuprofen"], weather: "Clear", sleep: 7.3, caffeine: 94, stress: "High", skippedMeal: true, notes: "Lots of meetings in bright room", hormonalStatus: ["Menstruating", "Luteal"] },
   { id: 4, date: "Mar 18", severity: 9, durationMin: 129, area: "Bilateral Temporal", symptoms: ["Severe Head Pain", "Vomiting", "Sound Sensitivity", "Aura"], triggers: ["Weather/Storm", "Travel", "Skipped Meal", "Caffeine"], meds: ["Zolmitriptan"], weather: "Storm", sleep: 7.6, caffeine: 235, stress: "Very High", skippedMeal: true, notes: "Travel day; irregular meals" },
   { id: 5, date: "Mar 13", severity: 9, durationMin: 82, area: "Frontal", symptoms: ["Severe Head Pain", "Nausea", "Aura", "Brain Fog"], triggers: ["Stress", "Weather/Storm", "Skipped Meal", "Poor Sleep"], meds: ["Sumatriptan"], weather: "Thunderstorm", sleep: 4.4, caffeine: 13, stress: "Very High", skippedMeal: true, notes: "Argued with colleague; thunderstorm" },
   { id: 6, date: "Mar 9", severity: 8, durationMin: 173, area: "Left Temporal", symptoms: ["Throbbing Pain", "Neck Tension", "Fatigue"], triggers: ["Barometric Pressure", "Caffeine"], meds: ["Naproxen"], weather: "Foggy", sleep: 6.9, caffeine: 168, stress: "Moderate", skippedMeal: false, notes: "Outdoor walk; low phone use" },
@@ -47,18 +50,12 @@ function verdictStyle(v: string) {
   return { label: "Rescue med", color: "text-primary", bg: "bg-primary/10 border-primary/20" };
 }
 
-export default function MigraineHistory() {
-  const allEntries = MOCK_ENTRIES;
+function HistoryTab({ allEntries }: { allEntries: typeof MOCK_ENTRIES }) {
   const avgSeverity = (allEntries.reduce((a, e) => a + e.severity, 0) / allEntries.length).toFixed(1);
   const avgDuration = Math.round(allEntries.reduce((a, e) => a + e.durationMin, 0) / allEntries.length);
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Migraine History</h1>
-        <p className="text-muted-foreground">Trends, triggers, and recent entries</p>
-      </div>
-
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-3">
         <Card>
@@ -260,6 +257,36 @@ export default function MigraineHistory() {
           </Card>
         ))}
       </div>
+    </div>
+  );
+}
+
+export default function MigraineHistory() {
+  return (
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Migraine History</h1>
+        <p className="text-muted-foreground">Trends, triggers, and clinical reports</p>
+      </div>
+
+      <Tabs defaultValue="history" className="w-full">
+        <TabsList className="w-full grid grid-cols-2">
+          <TabsTrigger value="history" className="gap-1.5">
+            <Brain className="h-3.5 w-3.5" /> History
+          </TabsTrigger>
+          <TabsTrigger value="report" className="gap-1.5">
+            <FileText className="h-3.5 w-3.5" /> Clinical Report
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="history" className="mt-4">
+          <HistoryTab allEntries={MOCK_ENTRIES} />
+        </TabsContent>
+
+        <TabsContent value="report" className="mt-4">
+          <ClinicalReport entries={MOCK_ENTRIES} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
