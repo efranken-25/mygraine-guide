@@ -864,7 +864,7 @@ function computeStats(filteredEntries: Entry[]) {
 
 export default function ClinicalReport({ entries }: Props) {
   const today = new Date();
-  const defaultFrom = new Date(today.getFullYear(), today.getMonth(), 1);
+  const defaultFrom = new Date(today.getFullYear(), today.getMonth() - 3, today.getDate());
   const [dateFrom, setDateFrom] = useState<Date>(defaultFrom);
   const [dateTo, setDateTo] = useState<Date>(today);
   const [patientNotes, setPatientNotes] = useState("");
