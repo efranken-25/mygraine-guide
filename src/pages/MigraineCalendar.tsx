@@ -113,15 +113,18 @@ export default function MigraineCalendar() {
   const [formDate, setFormDate] = useState<string | undefined>(undefined);
   const [alertResult, setAlertResult] = useState<AlertResult | null>(null);
   const [dismissedWarnings, setDismissedWarnings] = useState<Set<string>>(new Set());
+  const [deletedSampleDates, setDeletedSampleDates] = useState<Set<string>>(new Set());
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
   const startDayOfWeek = getDay(monthStart);
 
-  const getMigraineForDay = (day: Date): MigraineDay | UserEntry | undefined =>
-    MIGRAINE_DATA.find((m) => isSameDay(m.date, day)) ??
-    userEntries.find((e) => e.date === format(day, "MMM d"));
+  const getMigraineForDay = (day: Date): MigraineDay | UserEntry | undefined => {
+    const sampleEntry = MIGRAINE_DATA.find((m) => isSameDay(m.date, day));
+    if (sampleEntry && deletedSampleDates.has(format(day, "yyyy-MM-dd"))) return userEntries.find((e) => e.date === format(day, "MMM d"));
+    return sampleEntry ?? userEntries.find((e) => e.date === format(day, "MMM d"));
+  };
 
   /** Check if this day + the previous day both have different drugs of the same class */
   const hasSameClassWarning = (day: Date): { drugA: string; drugB: string; cls: string } | null => {
@@ -147,8 +150,12 @@ export default function MigraineCalendar() {
     return null;
   };
 
-  const deleteUserEntry = (id: number) => {
-    setUserEntries((prev) => prev.filter((e) => e.id !== id));
+  const deleteEntry = (entry: MigraineDay | UserEntry) => {
+    if (isUserEntryFn(entry)) {
+      setUserEntries((prev) => prev.filter((e) => e.id !== entry.id));
+    } else {
+      setDeletedSampleDates((prev) => new Set(prev).add(format(entry.date, "yyyy-MM-dd")));
+    }
     setSelectedDay(null);
   };
 
@@ -310,16 +317,14 @@ export default function MigraineCalendar() {
                 <span className={cn("inline-flex items-center justify-center h-6 w-6 rounded-full text-xs font-bold text-white", severityDot(selectedMigraine.severity))}>
                   {selectedMigraine.severity}
                 </span>
-                {/* Delete button — only for user entries */}
-                {isUserEntryFn(selectedMigraine) && (
-                  <button
-                    onClick={() => deleteUserEntry(selectedMigraine.id)}
+                {/* Delete button */}
+                <button
+                    onClick={() => deleteEntry(selectedMigraine)}
                     className="ml-1 rounded-full p-1.5 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                     title="Delete this entry"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
-                )}
               </div>
             </div>
 
