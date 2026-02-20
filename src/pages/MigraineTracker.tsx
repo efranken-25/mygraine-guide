@@ -1,13 +1,14 @@
 import { useState, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Zap, AlertTriangle, ChevronRight } from "lucide-react";
+import { Plus, Zap, AlertTriangle, ChevronRight} from "lucide-react";
+import LogMigraineForm, { UserEntry } from "@/components/LogMigraineForm";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import LogMigraineForm, { UserEntry } from "@/components/LogMigraineForm";
 import SoundscapeCard from "@/components/SoundscapeCard";
 import { Droplets } from "lucide-react";
 import MedicalAlertDialog, { checkMedicalAlert, AlertResult } from "@/components/MedicalAlertDialog";
 import OtcRecommendationDialog from "@/components/OtcRecommendationDialog";
+import { useUserEntries } from "@/lib/entriesContext";
 
 const CALM_QUOTES = [
   { text: "This too shall pass. Be gentle with yourself.", author: "Ancient Wisdom" },
@@ -174,6 +175,7 @@ function RiskBanner() {
   );
 }
 
+
 function WaterReminderCard() {
   return (
     <div className="flex items-center gap-3.5 rounded-2xl px-4 py-3.5"
@@ -261,12 +263,12 @@ function durationStr(min: number) {
 }
 
 export default function MigraineTracker() {
-  const { entries, addEntry } = useEntries();
+  const {entries, addEntry } = useUserEntries();
   const [showForm, setShowForm] = useState(false);
   const [alertResult, setAlertResult] = useState<AlertResult | null>(null);
   const [showOtcDialog, setShowOtcDialog] = useState(false);
 
-  const handleSave = useCallback((entry: UserEntry) => {
+  const handleSave = (entry: UserEntry) => {
     addEntry(entry);
     setShowForm(false);
 
@@ -274,7 +276,7 @@ export default function MigraineTracker() {
     toast.success("Migraine logged", {
       description: `Severity ${entry.severity}/10 · ${durationStr(entry.durationMin)}${medStr}`,
     });
-    
+
     // Check if no rescue meds were logged
     const hasRescueMeds = entry.meds && entry.meds.length > 0 && !entry.meds.every(m => m === "None" || m === "Unknown");
     if (!hasRescueMeds) {
@@ -288,14 +290,12 @@ export default function MigraineTracker() {
         setTimeout(() => setAlertResult(result), hasRescueMeds ? 50 : 600);
       }
     }
-  }, [addEntry]);
+  };
 
   return (
     <div className="space-y-5">
       <WelcomeBanner onMigraineDetected={() => setShowForm(true)} />
-
-      <RiskBanner />
-
+        <RiskBanner />
       <WaterReminderCard />
 
       <Button
@@ -308,6 +308,7 @@ export default function MigraineTracker() {
 
       {showForm && (
         <LogMigraineForm
+          open = {showForm}
           onSave={handleSave}
           onClose={() => setShowForm(false)}
         />
@@ -323,7 +324,7 @@ export default function MigraineTracker() {
 
       <OtcRecommendationDialog open={showOtcDialog} onClose={() => setShowOtcDialog(false)} />
 
-      <MedEffectivenessInsights entries={userEntries} />
+      <MedEffectivenessInsights entries={entries} />
 
       <SoundscapeCard />
     </div>

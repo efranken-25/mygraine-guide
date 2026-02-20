@@ -4,7 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/lib/auth";
-import { EntriesProvider } from "@/lib/entriesContext";
+import { UserEntriesProvider } from "@/lib/entriesContext";
 import AppLayout from "@/components/AppLayout";
 import MigraineTracker from "@/pages/MigraineTracker";
 import MigraineHistory from "@/pages/MigraineHistory";
@@ -44,11 +44,11 @@ const App = () => (
       <Toaster />
       <Sonner />
       <AuthProvider>
-        <EntriesProvider>
+        <UserEntriesProvider>
           <BrowserRouter>
             <AppRoutes />
           </BrowserRouter>
-        </EntriesProvider>
+        </UserEntriesProvider>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>

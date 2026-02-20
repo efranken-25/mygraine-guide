@@ -22,6 +22,8 @@ const OTC_RECOMMENDATIONS = [
 ];
 
 export default function OtcRecommendationDialog({ open, onClose }: Props) {
+  // Debug: log opens so we can trace why dialog may not appear on some pages
+  console.debug("OtcRecommendationDialog: render, open=", open);
   return (
     <AlertDialog open={open} onOpenChange={(v) => !v && onClose()}>
       <AlertDialogContent className="max-w-sm rounded-2xl">

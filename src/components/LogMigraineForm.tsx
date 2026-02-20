@@ -2,15 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import OtcRecommendationDialog from "@/components/OtcRecommendationDialog";
 import { X } from "lucide-react";
 import HeadMap, { HEAD_AREAS } from "@/components/HeadMap";
 
@@ -42,14 +34,15 @@ export interface UserEntry {
   stress: string;
   skippedMeal: boolean;
   notes: string;
-  isUserEntry: true;
+  isUserEntry?: true;
 }
 
 interface Props {
-  onSave: (e: UserEntry) => void;
+  open: boolean;
   onClose: () => void;
-  initialDate?: string;
   initialEntry?: UserEntry;
+  initialDate?: string;
+  onSave?: (entry: UserEntry) => void;
 }
 
 export default function LogMigraineForm({ onSave, onClose, initialDate, initialEntry }: Props) {
@@ -125,12 +118,10 @@ export default function LogMigraineForm({ onSave, onClose, initialDate, initialE
     // Save the entry first
     onSave(entry);
 
-    // If no medications were logged, show recommendation dialog
+    // If no medications were logged, show the shared OTC recommendation dialog
     if (filteredMeds.length === 0) {
-      // Recommend OTC medications based on severity
-      const otcOptions = severity >= 7 
-        ? ["Ibuprofen", "Naproxen"] // Stronger options for severe migraines
-        : ["Ibuprofen", "Acetaminophen"]; // Standard options for mild-moderate
+      // Keep internal recommended list for compatibility (not currently displayed by shared dialog)
+      const otcOptions = severity >= 7 ? ["Ibuprofen", "Naproxen"] : ["Ibuprofen", "Acetaminophen"];
       setRecommendedMeds(otcOptions);
       setShowMedRecommendation(true);
     }
@@ -451,35 +442,8 @@ export default function LogMigraineForm({ onSave, onClose, initialDate, initialE
         </div>
       </div>
 
-      {/* Medication recommendation dialog */}
-      <AlertDialog open={showMedRecommendation} onOpenChange={setShowMedRecommendation}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Recommended Medication</AlertDialogTitle>
-            <AlertDialogDescription>
-              Based on your migraine severity, we recommend taking one of these over-the-counter medications:
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="space-y-2 my-4">
-            {recommendedMeds.map((med) => (
-              <div key={med} className="p-3 rounded-lg border border-muted bg-muted/50">
-                <p className="font-semibold text-sm">{med}</p>
-                <p className="text-xs text-muted-foreground">
-                  {med === "Ibuprofen" && "Take 200-400mg every 4-6 hours as needed"}
-                  {med === "Naproxen" && "Take 220-500mg every 8-12 hours as needed"}
-                  {med === "Acetaminophen" && "Take 325-650mg every 4-6 hours as needed"}
-                </p>
-              </div>
-            ))}
-          </div>
-          <div className="text-xs text-muted-foreground italic">
-            Consult a healthcare provider before taking new medications.
-          </div>
-          <AlertDialogCancel onClick={handleDismissRecommendation}>
-            Got it
-          </AlertDialogCancel>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Use the shared OTC recommendation dialog for consistency with Calendar page */}
+      <OtcRecommendationDialog open={showMedRecommendation} onClose={handleDismissRecommendation} />
     </div>
   );
 }

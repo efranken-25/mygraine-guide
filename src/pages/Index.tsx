@@ -10,6 +10,7 @@ import { Zap, Clock, CheckCircle2 } from "lucide-react";
 import SeveritySlider from "@/components/SeveritySlider";
 import HeadMap from "@/components/HeadMap";
 import OtcRecommendationDialog from "@/components/OtcRecommendationDialog";
+import { useUserEntries } from "@/lib/entriesContext";
 
 const SYMPTOMS = [
   "Nausea", "Aura", "Light sensitivity", "Sound sensitivity",
@@ -27,6 +28,7 @@ export default function Index() {
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [showOtcDialog, setShowOtcDialog] = useState(false);
+  const { addEntry } = useUserEntries();
 
   const toggleSymptom = (s: string) => {
     setSymptoms((prev) => prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]);
@@ -46,6 +48,32 @@ export default function Index() {
     } else {
       setActiveMigraine(data.id);
       toast({ title: "Migraine logged", description: "Take care. You can end it when it passes." });
+      // Add to shared entries context so history/calendar update
+      try {
+        const dateLabel = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" });
+        const entry = {
+          id: Date.now(),
+          date: dateLabel,
+          severity,
+          durationMin: 60,
+          area: affectedArea,
+          symptoms,
+          triggers: [],
+          meds: [],
+          weather: "—",
+          sleep: 0,
+          caffeine: 0,
+          water: 0,
+          stress: severity >= 8 ? "Very High" : severity >= 5 ? "High" : "Moderate",
+          skippedMeal: false,
+          notes,
+          isUserEntry: true,
+        };
+        addEntry(entry as any);
+      } catch (e) {
+        // ignore if entries context not available
+      }
+
       // Show OTC recommendation since this form has no medication input
       setTimeout(() => setShowOtcDialog(true), 100);
     }

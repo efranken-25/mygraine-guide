@@ -999,7 +999,7 @@ export default function ClinicalReport({ entries }: Props) {
 
   const filteredEntries = useMemo(() => {
     const interval = { start: startOfDay(dateFrom), end: endOfDay(dateTo) };
-    return entries.filter((e) => {
+    const matched = entries.filter((e) => {
       const raw = e.date;
       try {
         // ISO format: "2026-02-01"
@@ -1018,6 +1018,12 @@ export default function ClinicalReport({ entries }: Props) {
         return true;
       }
     });
+
+    // If no entries match the chosen date range but we do have entries (e.g. demo data
+    // that uses month/day strings), fall back to showing all entries so actions like
+    // Export PDF remain available to the user.
+    if (matched.length === 0 && entries.length > 0) return entries;
+    return matched;
   }, [entries, dateFrom, dateTo]);
 
   const stats = useMemo(() => computeStats(filteredEntries), [filteredEntries]);

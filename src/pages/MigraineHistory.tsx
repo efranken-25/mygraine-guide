@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -6,14 +6,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Brain, Clock, Zap, TrendingUp, TrendingDown, Calendar, Pill, ArrowRight, Droplets, Wind, AlertTriangle, FileText } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import ClinicalReport from "@/components/ClinicalReport";
-import { useEntries, DEMO_ENTRIES } from "@/lib/entriesContext";
-import type { UserEntry } from "@/components/LogMigraineForm";
+import { SAMPLE_MIGRAINE_DATA } from "@/lib/sampleMigraineData";
+import { useUserEntries } from "@/lib/entriesContext";
+
+const SAMPLE_ENTRIES = SAMPLE_MIGRAINE_DATA
+  .filter((e) => e.isoDate.startsWith("2026-02"))
+  .sort((a, b) => b.isoDate.localeCompare(a.isoDate));
+
 
 const MED_EFFECTIVENESS = [
   { name: "Topiramate", dosage: "50mg", status: "active", period: "8 weeks", avgSeverityBefore: 7.8, avgSeverityDuring: 6.4, frequencyBefore: 8, frequencyDuring: 5, verdict: "moderate" },
   { name: "Propranolol", dosage: "80mg", status: "discontinued", period: "12 weeks", avgSeverityBefore: 7.8, avgSeverityDuring: 7.5, frequencyBefore: 8, frequencyDuring: 7, verdict: "ineffective" },
   { name: "Sumatriptan", dosage: "100mg", status: "active", period: "Acute use", avgSeverityBefore: null, avgSeverityDuring: null, frequencyBefore: null, frequencyDuring: null, verdict: "rescue" },
 ];
+
+const ALL_TRIGGERS = SAMPLE_MIGRAINE_DATA.flatMap((e) => e.triggers);
+const triggerCounts: Record<string, number> = {};
+ALL_TRIGGERS.forEach((t) => { triggerCounts[t] = (triggerCounts[t] || 0) + 1; });
+const TOP_TRIGGERS = Object.entries(triggerCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
 function minToHm(min: number): string {
   const h = Math.floor(min / 60);
@@ -36,14 +46,9 @@ function verdictStyle(v: string) {
   return { label: "Rescue med", color: "text-primary", bg: "bg-primary/10 border-primary/20" };
 }
 
-function HistoryTab({ allEntries }: { allEntries: UserEntry[] }) {
+function HistoryTab({ allEntries }: { allEntries: typeof SAMPLE_ENTRIES }) {
   const avgSeverity = (allEntries.reduce((a, e) => a + e.severity, 0) / allEntries.length).toFixed(1);
   const avgDuration = Math.round(allEntries.reduce((a, e) => a + e.durationMin, 0) / allEntries.length);
-
-  const allTriggers = allEntries.flatMap((e) => e.triggers);
-  const triggerCounts: Record<string, number> = {};
-  allTriggers.forEach((t) => { triggerCounts[t] = (triggerCounts[t] || 0) + 1; });
-  const topTriggers = Object.entries(triggerCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
   return (
     <div className="space-y-5">
@@ -127,7 +132,7 @@ function HistoryTab({ allEntries }: { allEntries: UserEntry[] }) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
-          {topTriggers.map(([trigger, count]) => (
+          {TOP_TRIGGERS.map(([trigger, count]) => (
             <div key={trigger} className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground w-36 shrink-0">{trigger}</span>
               <Progress value={(count / allEntries.length) * 100} className="flex-1 h-1.5 [&>div]:bg-[hsl(var(--warning))]" />
@@ -253,8 +258,16 @@ function HistoryTab({ allEntries }: { allEntries: UserEntry[] }) {
 }
 
 export default function MigraineHistory() {
-  const { entries } = useEntries();
-  const displayEntries = entries.length > 0 ? entries : DEMO_ENTRIES;
+  const { entries } = useUserEntries();
+
+  // Merge user entries with sample entries for display
+  const allEntries = useMemo(() => {
+    const userAsSample = entries.map((e) => ({
+      ...e,
+      isoDate: "", // user entries don't have isoDate but we include them anyway
+    }));
+    return [...userAsSample, ...SAMPLE_ENTRIES].sort((a, b) => b.id - a.id).slice(0, 12);
+  }, [entries]);
 
   return (
     <div className="space-y-5">
@@ -274,11 +287,11 @@ export default function MigraineHistory() {
         </TabsList>
 
         <TabsContent value="history" className="mt-4">
-          <HistoryTab allEntries={displayEntries} />
+          <HistoryTab allEntries={allEntries} />
         </TabsContent>
 
         <TabsContent value="report" className="mt-4">
-          <ClinicalReport entries={displayEntries} />
+          <ClinicalReport entries={allEntries} />
         </TabsContent>
       </Tabs>
     </div>
