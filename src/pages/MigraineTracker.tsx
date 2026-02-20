@@ -111,8 +111,12 @@ export default function MigraineTracker() {
 
   const handleSave = (entry: UserEntry) => {
     setUserEntries([entry, ...userEntries]);
+    setShowForm(false);
     const result = checkMedicalAlert(entry);
-    if (result.triggered) setAlertResult(result);
+    if (result.triggered) {
+      // Defer so the form overlay fully unmounts before the dialog opens
+      setTimeout(() => setAlertResult(result), 50);
+    }
   };
 
   return (
