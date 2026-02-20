@@ -6,3 +6,6 @@ verify_jwt = false
 [functions.insurance-lookup]
 verify_jwt = false
 
+[functions.provider-search]
+verify_jwt = false
+
