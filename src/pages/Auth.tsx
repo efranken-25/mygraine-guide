@@ -61,11 +61,6 @@ export default function Auth() {
                 Sign in
               </Button>
             </form>
-            <div className="mt-5 rounded-xl bg-muted/60 px-4 py-3">
-              <p className="text-[11px] font-semibold text-muted-foreground mb-1">Demo credentials</p>
-              <p className="text-xs text-foreground/70 font-mono">demo@mygraineguide.com</p>
-              <p className="text-xs text-foreground/70 font-mono">migraine123</p>
-            </div>
           </CardContent>
         </Card>
       </div>
