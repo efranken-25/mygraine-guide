@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, Brain, Clock, Droplets, Wind, Pill, Plus, Tr
 import { cn } from "@/lib/utils";
 import LogMigraineForm, { UserEntry } from "@/components/LogMigraineForm";
 import MedicalAlertDialog, { checkMedicalAlert, AlertResult } from "@/components/MedicalAlertDialog";
+import { useEntries } from "@/lib/entriesContext";
 
 type MigraineDay = {
   date: Date;
@@ -106,9 +107,9 @@ function getMedStrings(m: MigraineDay | UserEntry): string[] {
 }
 
 export default function MigraineCalendar() {
+  const { entries: userEntries, addEntry, updateEntry, deleteEntry: deleteFromContext } = useEntries();
   const [currentMonth, setCurrentMonth] = useState(new Date(2026, 1, 1));
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
-  const [userEntries, setUserEntries] = useState<UserEntry[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [formDate, setFormDate] = useState<string | undefined>(undefined);
   const [editingEntry, setEditingEntry] = useState<UserEntry | undefined>(undefined);
@@ -154,7 +155,7 @@ export default function MigraineCalendar() {
 
   const deleteEntry = (entry: MigraineDay | UserEntry) => {
     if (isUserEntryFn(entry)) {
-      setUserEntries((prev) => prev.filter((e) => e.id !== entry.id));
+      deleteFromContext(entry.id);
     } else {
       setDeletedSampleDates((prev) => new Set(prev).add(format(entry.date, "yyyy-MM-dd")));
     }
@@ -200,7 +201,7 @@ export default function MigraineCalendar() {
       notes: "",
       isUserEntry: true,
     };
-    setUserEntries([entry, ...userEntries]);
+    addEntry(entry);
     setQuickAddDay(null);
     setSelectedDay(day);
   };
@@ -214,9 +215,9 @@ export default function MigraineCalendar() {
   const handleFormSave = (e: UserEntry) => {
     if (editingEntry) {
       // Replace existing entry
-      setUserEntries((prev) => prev.map((existing) => existing.id === editingEntry.id ? e : existing));
+      updateEntry(e);
     } else {
-      setUserEntries([e, ...userEntries]);
+      addEntry(e);
     }
     setSelectedDay(null);
     setShowForm(false);

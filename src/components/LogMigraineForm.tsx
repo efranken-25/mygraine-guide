@@ -2,6 +2,15 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { X } from "lucide-react";
 import HeadMap, { HEAD_AREAS } from "@/components/HeadMap";
 
@@ -62,6 +71,8 @@ export default function LogMigraineForm({ onSave, onClose, initialDate, initialE
   const [skippedMeal, setSkippedMeal] = useState(initialEntry?.skippedMeal ?? false);
   const [hormonalStatus, setHormonalStatus] = useState<string[]>(initialEntry?.hormonalStatus ?? []);
   const [medEffectiveness, setMedEffectiveness] = useState<Record<string, MedEffectiveness>>(initialEntry?.medEffectiveness ?? {});
+  const [showMedRecommendation, setShowMedRecommendation] = useState(false);
+  const [recommendedMeds, setRecommendedMeds] = useState<string[]>([]);
 
   const activeMeds = meds.filter((m) => m !== "None");
 
@@ -89,7 +100,8 @@ export default function LogMigraineForm({ onSave, onClose, initialDate, initialE
     filteredMeds.forEach((m) => {
       if (medEffectiveness[m]) filteredEffectiveness[m] = medEffectiveness[m];
     });
-    onSave({
+    
+    const entry: UserEntry = {
       id: initialEntry?.id ?? Date.now(),
       date: dateLabel,
       severity,
@@ -108,8 +120,25 @@ export default function LogMigraineForm({ onSave, onClose, initialDate, initialE
       hormonalStatus: hormonalStatus.length > 0 ? hormonalStatus : undefined,
       notes,
       isUserEntry: true,
-    });
-    // onClose is handled by the parent after processing the entry
+    };
+
+    // Save the entry first
+    onSave(entry);
+
+    // If no medications were logged, show recommendation dialog
+    if (filteredMeds.length === 0) {
+      // Recommend OTC medications based on severity
+      const otcOptions = severity >= 7 
+        ? ["Ibuprofen", "Naproxen"] // Stronger options for severe migraines
+        : ["Ibuprofen", "Acetaminophen"]; // Standard options for mild-moderate
+      setRecommendedMeds(otcOptions);
+      setShowMedRecommendation(true);
+    }
+  };
+
+  const handleDismissRecommendation = () => {
+    setShowMedRecommendation(false);
+    setRecommendedMeds([]);
   };
 
   return (
@@ -421,6 +450,38 @@ export default function LogMigraineForm({ onSave, onClose, initialDate, initialE
           </Button>
         </div>
       </div>
+
+      {/* Medication recommendation dialog */}
+      <AlertDialog open={showMedRecommendation} onOpenChange={setShowMedRecommendation}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Recommended Medication</AlertDialogTitle>
+            <AlertDialogDescription>
+              Based on your migraine severity, we recommend taking one of these over-the-counter medications:
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2 my-4">
+            {recommendedMeds.map((med) => (
+              <div key={med} className="p-3 rounded-lg border border-muted bg-muted/50">
+                <p className="font-semibold text-sm">{med}</p>
+                <p className="text-xs text-muted-foreground">
+                  {med === "Ibuprofen" && "Take 200-400mg every 4-6 hours as needed"}
+                  {med === "Naproxen" && "Take 220-500mg every 8-12 hours as needed"}
+                  {med === "Acetaminophen" && "Take 325-650mg every 4-6 hours as needed"}
+                </p>
+              </div>
+            ))}
+          </div>
+          <div className="text-xs text-muted-foreground italic">
+            Consult a healthcare provider before taking new medications.
+          </div>
+          <AlertDialogCancel onClick={handleDismissRecommendation}>
+            Got it
+          </AlertDialogCancel>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
+
+

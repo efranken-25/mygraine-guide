@@ -653,76 +653,205 @@ async function exportClinicalPDF(
   // SECTION 8 — FULL EPISODE LOG
   // ══════════════════════════════════════════════════════════════════════════
 
-  sectionHeading("8. Full Episode Log");
+  sectionHeading("8. Full Migraine Episode Log");
 
   const chronoLog = filteredEntries.slice().reverse();
   chronoLog.forEach((entry, i) => {
-    const rowH = entry.notes ? 14 : 9;
-    newPageIfNeeded(rowH + 2);
+    newPageIfNeeded(30);
 
     const sev = entry.severity;
     const sc = sevColor(sev);
 
-    // Episode card
-    setFill(i % 2 === 0 ? C.bg1 : [255,255,255]);
+    // Episode header card with severity bar
+    setFill(i % 2 === 0 ? [250, 250, 250] : [245, 245, 245]);
     setDraw(C.light);
-    pdf.rect(M, y, CW, rowH, "FD");
+    pdf.rect(M, y, CW, 7, "FD");
 
-    // Left severity bar
+    // Left severity color bar
     setFill(sc);
-    pdf.rect(M, y, 3, rowH, "F");
+    pdf.rect(M, y, 4, 7, "F");
 
-    // Row 1: date, area, severity, duration, meds
-    pdf.setFontSize(8.5);
+    // Episode title: date, area, severity
+    pdf.setFontSize(9);
     pdf.setFont("helvetica", "bold");
     setTxt(C.black);
-    pdf.text(entry.date, M + 5, y + 4);
+    pdf.text(`Episode: ${entry.date}`, M + 6, y + 4.5);
 
+    pdf.setFontSize(7.5);
     pdf.setFont("helvetica", "normal");
     setTxt(C.mid);
-    pdf.text(entry.area, M + 28, y + 4);
+    pdf.text(`Location: ${entry.area}`, M + 70, y + 3.5);
 
     pdf.setFont("helvetica", "bold");
     setTxt(sc);
-    pdf.text(`${sev}/10`, M + 80, y + 4);
+    pdf.text(`Severity: ${sev}/10`, M + 70, y + 6);
 
-    pdf.setFont("helvetica", "normal");
-    setTxt(C.dark);
-    pdf.text(minToHm(entry.durationMin), M + 98, y + 4);
+    y += 8;
 
-    if (entry.meds.length) {
-      pdf.setFontSize(7.2);
+    // Episode details - organized rows
+    const episodeDetails = [
+      ["Duration", minToHm(entry.durationMin)],
+      ["Sleep prior (hours)", entry.sleep ? String(entry.sleep) : "Not logged"],
+      ["Caffeine intake (mg)", entry.caffeine !== undefined && entry.caffeine !== null ? String(entry.caffeine) : "Not logged"],
+      ["Stress level", entry.stress || "Not logged"],
+      ["Skipped meal?", entry.skippedMeal ? "Yes" : "No"],
+    ];
+
+    episodeDetails.forEach((detail, di) => {
+      setFill(di % 2 === 0 ? [250, 250, 250] : [255, 255, 255]);
+      setDraw(C.light);
+      pdf.rect(M, y, CW, 5, "FD");
+
+      pdf.setFontSize(7.5);
+      pdf.setFont("helvetica", "bold");
       setTxt(C.mid);
-      pdf.text("Rx: " + entry.meds.join(", "), M + 120, y + 4);
+      pdf.text(detail[0], M + 3, y + 3.5);
+
+      pdf.setFont("helvetica", "normal");
+      setTxt(C.dark);
+      pdf.text(detail[1], M + 60, y + 3.5);
+
+      y += 5;
+    });
+
+    y += 2;
+
+    // Symptoms
+    if (entry.symptoms.length > 0) {
+      setFill(C.bg2);
+      setDraw(C.light);
+      pdf.rect(M, y, CW, 5, "FD");
+      pdf.setFontSize(7.5);
+      pdf.setFont("helvetica", "bold");
+      setTxt(C.black);
+      pdf.text("Symptoms", M + 3, y + 3.5);
+      y += 5;
+
+      const symWrapped = pdf.splitTextToSize(entry.symptoms.join(", "), CW - 6);
+      symWrapped.forEach((symLine: string, si: number) => {
+        setFill(si % 2 === 0 ? [250, 250, 250] : [255, 255, 255]);
+        setDraw(C.light);
+        pdf.rect(M, y, CW, 5, "FD");
+        pdf.setFontSize(7);
+        pdf.setFont("helvetica", "normal");
+        setTxt(C.dark);
+        pdf.text(symLine, M + 3, y + 3.5);
+        y += 5;
+      });
+      y += 1;
     }
 
-    // Row 2: symptoms
-    pdf.setFontSize(7);
-    pdf.setFont("helvetica", "normal");
-    setTxt(C.mid);
-    const symLine = "Symptoms: " + (entry.symptoms.join(", ") || "None");
-    pdf.text(pdf.splitTextToSize(symLine, CW - 10)[0], M + 5, y + 8);
+    // Triggers
+    if (entry.triggers.length > 0) {
+      setFill(C.bg2);
+      setDraw(C.light);
+      pdf.rect(M, y, CW, 5, "FD");
+      pdf.setFontSize(7.5);
+      pdf.setFont("helvetica", "bold");
+      setTxt(C.black);
+      pdf.text("Triggers", M + 3, y + 3.5);
+      y += 5;
 
-    // Row 3: triggers and hormonal
-    if (rowH >= 9) {
-      setTxt(C.muted);
-      const trigLine = "Triggers: " + (entry.triggers.join(", ") || "None");
-      pdf.text(pdf.splitTextToSize(trigLine, CW / 2 - 8)[0], M + 5, y + 11.5);
-
-      if (entry.hormonalStatus?.length) {
-        pdf.text("Hormonal: " + entry.hormonalStatus.join(", "), M + CW/2, y + 11.5);
-      }
+      const trigWrapped = pdf.splitTextToSize(entry.triggers.join(", "), CW - 6);
+      trigWrapped.forEach((trigLine: string, ti: number) => {
+        setFill(ti % 2 === 0 ? [250, 250, 250] : [255, 255, 255]);
+        setDraw(C.light);
+        pdf.rect(M, y, CW, 5, "FD");
+        pdf.setFontSize(7);
+        pdf.setFont("helvetica", "normal");
+        setTxt(C.dark);
+        pdf.text(trigLine, M + 3, y + 3.5);
+        y += 5;
+      });
+      y += 1;
     }
 
-    // Notes
+    // Medications used
+    if (entry.meds.length > 0) {
+      setFill(C.bg2);
+      setDraw(C.light);
+      pdf.rect(M, y, CW, 5, "FD");
+      pdf.setFontSize(7.5);
+      pdf.setFont("helvetica", "bold");
+      setTxt(C.black);
+      pdf.text("Medications Used", M + 3, y + 3.5);
+      y += 5;
+
+      entry.meds.forEach((med: string, mi: number) => {
+        const effectiveness = entry.medEffectiveness?.[med];
+        let effectiveness_text = "";
+        if (effectiveness) {
+          const helped = effectiveness.helped || "not tracked";
+          const timeToRelief = effectiveness.timeToReliefMin
+            ? ` - ${minToHm(effectiveness.timeToReliefMin)} to relief`
+            : "";
+          effectiveness_text = ` (${helped}${timeToRelief})`;
+        }
+
+        setFill(mi % 2 === 0 ? [250, 250, 250] : [255, 255, 255]);
+        setDraw(C.light);
+        pdf.rect(M, y, CW, 5, "FD");
+        pdf.setFontSize(7);
+        pdf.setFont("helvetica", "normal");
+        setTxt(C.dark);
+        const medText = med + effectiveness_text;
+        pdf.text(medText, M + 3, y + 3.5);
+        y += 5;
+      });
+      y += 1;
+    }
+
+    // Hormonal status
+    if (entry.hormonalStatus?.length) {
+      setFill(C.bg2);
+      setDraw(C.light);
+      pdf.rect(M, y, CW, 5, "FD");
+      pdf.setFontSize(7.5);
+      pdf.setFont("helvetica", "bold");
+      setTxt(C.black);
+      pdf.text("Hormonal Status", M + 3, y + 3.5);
+      y += 5;
+
+      const horWrapped = pdf.splitTextToSize(entry.hormonalStatus.join(", "), CW - 6);
+      horWrapped.forEach((horLine: string, hi: number) => {
+        setFill(hi % 2 === 0 ? [250, 250, 250] : [255, 255, 255]);
+        setDraw(C.light);
+        pdf.rect(M, y, CW, 5, "FD");
+        pdf.setFontSize(7);
+        pdf.setFont("helvetica", "normal");
+        setTxt(C.dark);
+        pdf.text(horLine, M + 3, y + 3.5);
+        y += 5;
+      });
+      y += 1;
+    }
+
+    // Patient notes
     if (entry.notes) {
-      pdf.setFontSize(7);
-      pdf.setFont("helvetica", "italic");
-      setTxt(C.muted);
-      pdf.text("Note: " + pdf.splitTextToSize(entry.notes, CW - 10)[0], M + 5, y + 13);
+      setFill(C.bg2);
+      setDraw(C.light);
+      pdf.rect(M, y, CW, 5, "FD");
+      pdf.setFontSize(7.5);
+      pdf.setFont("helvetica", "bold");
+      setTxt(C.black);
+      pdf.text("Notes", M + 3, y + 3.5);
+      y += 5;
+
+      const notesWrapped = pdf.splitTextToSize(entry.notes, CW - 6);
+      notesWrapped.forEach((noteLine: string, ni: number) => {
+        setFill(ni % 2 === 0 ? [250, 250, 250] : [255, 255, 255]);
+        setDraw(C.light);
+        pdf.rect(M, y, CW, 5, "FD");
+        pdf.setFontSize(7);
+        pdf.setFont("helvetica", "italic");
+        setTxt(C.dark);
+        pdf.text(noteLine, M + 3, y + 3.5);
+        y += 5;
+      });
+      y += 1;
     }
 
-    y += rowH + 0.5;
+    y += 3;
   });
 
   y += SECTION_GAP;
@@ -844,22 +973,12 @@ function computeStats(filteredEntries: Entry[]) {
 export default function ClinicalReport({ entries }: Props) {
   const today = new Date();
 
-  // Determine default date range: cover all entries if possible, else last 3 months
+  // Default date range: 3 months in the past from today
   const defaultFrom = useMemo(() => {
-    if (!entries.length) return new Date(today.getFullYear(), today.getMonth() - 3, today.getDate());
-    const currentYear = today.getFullYear();
-    const dates = entries.map((e) => {
-      try {
-        if (/^\d{4}-\d{2}-\d{2}/.test(e.date)) return parseISO(e.date);
-        // Try current year first, then previous year
-        let d = parse(e.date, "MMM d", new Date(currentYear, 0, 1));
-        if (d > today) d = parse(e.date, "MMM d", new Date(currentYear - 1, 0, 1));
-        return d;
-      } catch { return today; }
-    }).filter((d) => !isNaN(d.getTime()));
-    if (!dates.length) return new Date(today.getFullYear(), today.getMonth() - 3, today.getDate());
-    return new Date(Math.min(...dates.map((d) => d.getTime())));
-  }, [entries]);
+    const threeMonthsAgo = new Date(today);
+    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+    return threeMonthsAgo;
+  }, [today]);
 
   const [dateFrom, setDateFrom] = useState<Date>(defaultFrom);
   const [dateTo, setDateTo] = useState<Date>(today);
@@ -933,6 +1052,7 @@ export default function ClinicalReport({ entries }: Props) {
 
   const handleExportPDF = async () => {
     setExporting(true);
+    setError(null);
     try {
       await exportClinicalPDF(
         chartsRef,
@@ -943,6 +1063,9 @@ export default function ClinicalReport({ entries }: Props) {
         stats,
         aiReport
       );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to export PDF");
+      console.error("PDF export error:", e);
     } finally {
       setExporting(false);
     }

@@ -15,6 +15,8 @@ export const DEMO_ENTRIES: UserEntry[] = [
 interface EntriesContextValue {
   entries: UserEntry[];
   addEntry: (e: UserEntry) => void;
+  updateEntry: (e: UserEntry) => void;
+  deleteEntry: (id: number | string) => void;
   loadDemoData: () => void;
   isDemoLoaded: boolean;
 }
@@ -27,13 +29,21 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
 
   const addEntry = (e: UserEntry) => setEntries(prev => [e, ...prev]);
 
+  const updateEntry = (e: UserEntry) => setEntries(prev => 
+    prev.map(existing => existing.id === e.id ? e : existing)
+  );
+
+  const deleteEntry = (id: number | string) => setEntries(prev => 
+    prev.filter(e => e.id !== id)
+  );
+
   const loadDemoData = () => {
     setEntries(DEMO_ENTRIES);
     setIsDemoLoaded(true);
   };
 
   return (
-    <EntriesContext.Provider value={{ entries, addEntry, loadDemoData, isDemoLoaded }}>
+    <EntriesContext.Provider value={{ entries, addEntry, updateEntry, deleteEntry, loadDemoData, isDemoLoaded }}>
       {children}
     </EntriesContext.Provider>
   );
