@@ -3,10 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { X } from "lucide-react";
+import HeadMap, { HEAD_AREAS } from "@/components/HeadMap";
 
 export const SYMPTOM_OPTIONS = ["Throbbing Pain", "Nausea", "Light Sensitivity", "Sound Sensitivity", "Aura", "Eye Pain", "Neck Tension", "Vomiting", "Dizziness", "Severe Head Pain"];
 export const TRIGGER_OPTIONS = ["Stress", "Poor Sleep", "Caffeine", "Bright Light", "Skipped Meal", "Hormonal/Menstrual", "Rain/Pressure", "Travel", "Screen Time", "Alcohol"];
-export const AREA_OPTIONS = ["Full Head", "Right Side", "Left Side", "Periorbital", "Occipital", "Right Orbital", "Forehead", "Temple"];
+export const AREA_OPTIONS = HEAD_AREAS.map(a => a.label);
 export const MED_OPTIONS = ["Sumatriptan", "Rizatriptan", "Ubrogepant", "Rimegepant", "Ibuprofen", "Naproxen", "Eletriptan", "Lasmiditan", "None"];
 
 export interface UserEntry {
@@ -38,7 +39,7 @@ export default function LogMigraineForm({ onSave, onClose, initialDate }: Props)
   const dateLabel = initialDate ?? today.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
   const [severity, setSeverity] = useState(5);
-  const [area, setArea] = useState("Full Head");
+  const [area, setArea] = useState("full");
   const [durationHours, setDurationHours] = useState(1);
   const [durationMins, setDurationMins] = useState(0);
   const [symptoms, setSymptoms] = useState<string[]>([]);
@@ -53,12 +54,13 @@ export default function LogMigraineForm({ onSave, onClose, initialDate }: Props)
     set(arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val]);
 
   const handleSave = () => {
+    const areaLabel = HEAD_AREAS.find(a => a.id === area)?.label ?? area;
     onSave({
       id: Date.now(),
       date: dateLabel,
       severity,
       durationMin: durationHours * 60 + durationMins,
-      area,
+      area: areaLabel,
       symptoms,
       triggers,
       meds: meds.filter((m) => m !== "None"),
@@ -134,14 +136,7 @@ export default function LogMigraineForm({ onSave, onClose, initialDate }: Props)
           {/* Location */}
           <div className="space-y-2">
             <Label className="text-sm font-medium">Location</Label>
-            <div className="flex flex-wrap gap-1.5">
-              {AREA_OPTIONS.map((a) => (
-                <button key={a} onClick={() => setArea(a)}
-                  className={`px-3 py-1.5 rounded-full text-xs transition-all border ${area === a ? "bg-primary text-primary-foreground border-primary" : "bg-muted text-muted-foreground border-transparent"}`}>
-                  {a}
-                </button>
-              ))}
-            </div>
+            <HeadMap value={area} onChange={setArea} />
           </div>
 
           {/* Symptoms */}
