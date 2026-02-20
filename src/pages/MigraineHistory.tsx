@@ -6,28 +6,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Brain, Clock, Zap, TrendingUp, TrendingDown, Calendar, Pill, ArrowRight, Droplets, Wind, AlertTriangle, FileText } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import ClinicalReport from "@/components/ClinicalReport";
-
-const MOCK_ENTRIES = [
-  { id: 1, date: "Mar 26", severity: 10, durationMin: 213, area: "Periorbital", symptoms: ["Severe Head Pain", "Nausea", "Light Sensitivity"], triggers: ["Travel", "Stress", "Caffeine"], meds: ["Eletriptan"], weather: "Cloudy", sleep: 6.7, caffeine: 151, stress: "Very High", skippedMeal: false, notes: "Travel day; irregular meals", hormonalStatus: ["Menstruating"] },
-  { id: 2, date: "Mar 24", severity: 8, durationMin: 66, area: "Occipital", symptoms: ["Throbbing Pain", "Neck Tension", "Nausea"], triggers: ["Caffeine", "Poor Sleep", "Rain/Pressure"], meds: ["Rizatriptan"], weather: "Light Rain", sleep: 4.4, caffeine: 224, stress: "Very High", skippedMeal: false, notes: "Travel day; irregular meals" },
-  { id: 3, date: "Mar 21", severity: 7, durationMin: 149, area: "Right Orbital", symptoms: ["Eye Pain", "Light Sensitivity", "Throbbing"], triggers: ["Bright Light", "Skipped Meal", "Hormonal/Menstrual"], meds: ["Ibuprofen"], weather: "Clear", sleep: 7.3, caffeine: 94, stress: "High", skippedMeal: true, notes: "Lots of meetings in bright room", hormonalStatus: ["Menstruating", "Luteal"] },
-  { id: 4, date: "Mar 18", severity: 9, durationMin: 129, area: "Bilateral Temporal", symptoms: ["Severe Head Pain", "Vomiting", "Sound Sensitivity", "Aura"], triggers: ["Weather/Storm", "Travel", "Skipped Meal", "Caffeine"], meds: ["Zolmitriptan"], weather: "Storm", sleep: 7.6, caffeine: 235, stress: "Very High", skippedMeal: true, notes: "Travel day; irregular meals" },
-  { id: 5, date: "Mar 13", severity: 9, durationMin: 82, area: "Frontal", symptoms: ["Severe Head Pain", "Nausea", "Aura", "Brain Fog"], triggers: ["Stress", "Weather/Storm", "Skipped Meal", "Poor Sleep"], meds: ["Sumatriptan"], weather: "Thunderstorm", sleep: 4.4, caffeine: 13, stress: "Very High", skippedMeal: true, notes: "Argued with colleague; thunderstorm" },
-  { id: 6, date: "Mar 9", severity: 8, durationMin: 173, area: "Left Temporal", symptoms: ["Throbbing Pain", "Neck Tension", "Fatigue"], triggers: ["Barometric Pressure", "Caffeine"], meds: ["Naproxen"], weather: "Foggy", sleep: 6.9, caffeine: 168, stress: "Moderate", skippedMeal: false, notes: "Outdoor walk; low phone use" },
-  { id: 7, date: "Mar 8", severity: 9, durationMin: 51, area: "Vertex", symptoms: ["Severe Head Pain", "Nausea", "Dizziness"], triggers: ["Travel", "Caffeine", "Stress", "Weather/Storm"], meds: ["Ibuprofen"], weather: "Snow", sleep: 5.9, caffeine: 260, stress: "Very High", skippedMeal: false, notes: "Travel day; irregular meals" },
-  { id: 8, date: "Mar 7", severity: 7, durationMin: 135, area: "Right Orbital", symptoms: ["Eye Pain", "Screen Fatigue", "Neck Tension", "Brain Fog"], triggers: ["Screen Time", "Caffeine", "Poor Sleep"], meds: ["Naproxen"], weather: "Foggy", sleep: 4.2, caffeine: 249, stress: "Very High", skippedMeal: false, notes: "Long coding session; forgot breaks" },
-];
+import { useEntries, DEMO_ENTRIES } from "@/lib/entriesContext";
+import type { UserEntry } from "@/components/LogMigraineForm";
 
 const MED_EFFECTIVENESS = [
   { name: "Topiramate", dosage: "50mg", status: "active", period: "8 weeks", avgSeverityBefore: 7.8, avgSeverityDuring: 6.4, frequencyBefore: 8, frequencyDuring: 5, verdict: "moderate" },
   { name: "Propranolol", dosage: "80mg", status: "discontinued", period: "12 weeks", avgSeverityBefore: 7.8, avgSeverityDuring: 7.5, frequencyBefore: 8, frequencyDuring: 7, verdict: "ineffective" },
   { name: "Sumatriptan", dosage: "100mg", status: "active", period: "Acute use", avgSeverityBefore: null, avgSeverityDuring: null, frequencyBefore: null, frequencyDuring: null, verdict: "rescue" },
 ];
-
-const ALL_TRIGGERS = MOCK_ENTRIES.flatMap((e) => e.triggers);
-const triggerCounts: Record<string, number> = {};
-ALL_TRIGGERS.forEach((t) => { triggerCounts[t] = (triggerCounts[t] || 0) + 1; });
-const TOP_TRIGGERS = Object.entries(triggerCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
 function minToHm(min: number): string {
   const h = Math.floor(min / 60);
@@ -50,9 +36,14 @@ function verdictStyle(v: string) {
   return { label: "Rescue med", color: "text-primary", bg: "bg-primary/10 border-primary/20" };
 }
 
-function HistoryTab({ allEntries }: { allEntries: typeof MOCK_ENTRIES }) {
+function HistoryTab({ allEntries }: { allEntries: UserEntry[] }) {
   const avgSeverity = (allEntries.reduce((a, e) => a + e.severity, 0) / allEntries.length).toFixed(1);
   const avgDuration = Math.round(allEntries.reduce((a, e) => a + e.durationMin, 0) / allEntries.length);
+
+  const allTriggers = allEntries.flatMap((e) => e.triggers);
+  const triggerCounts: Record<string, number> = {};
+  allTriggers.forEach((t) => { triggerCounts[t] = (triggerCounts[t] || 0) + 1; });
+  const topTriggers = Object.entries(triggerCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
   return (
     <div className="space-y-5">
@@ -136,7 +127,7 @@ function HistoryTab({ allEntries }: { allEntries: typeof MOCK_ENTRIES }) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
-          {TOP_TRIGGERS.map(([trigger, count]) => (
+          {topTriggers.map(([trigger, count]) => (
             <div key={trigger} className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground w-36 shrink-0">{trigger}</span>
               <Progress value={(count / allEntries.length) * 100} className="flex-1 h-1.5 [&>div]:bg-[hsl(var(--warning))]" />
@@ -262,6 +253,9 @@ function HistoryTab({ allEntries }: { allEntries: typeof MOCK_ENTRIES }) {
 }
 
 export default function MigraineHistory() {
+  const { entries } = useEntries();
+  const displayEntries = entries.length > 0 ? entries : DEMO_ENTRIES;
+
   return (
     <div className="space-y-5">
       <div>
@@ -280,11 +274,11 @@ export default function MigraineHistory() {
         </TabsList>
 
         <TabsContent value="history" className="mt-4">
-          <HistoryTab allEntries={MOCK_ENTRIES} />
+          <HistoryTab allEntries={displayEntries} />
         </TabsContent>
 
         <TabsContent value="report" className="mt-4">
-          <ClinicalReport entries={MOCK_ENTRIES} />
+          <ClinicalReport entries={displayEntries} />
         </TabsContent>
       </Tabs>
     </div>

@@ -1,10 +1,13 @@
 import { useState, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Zap } from "lucide-react";
+import { Plus, Zap, AlertTriangle, ChevronRight, FlaskConical } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import LogMigraineForm, { UserEntry } from "@/components/LogMigraineForm";
 import SoundscapeCard from "@/components/SoundscapeCard";
 import { Droplets } from "lucide-react";
 import MedicalAlertDialog, { checkMedicalAlert, AlertResult } from "@/components/MedicalAlertDialog";
+import { useEntries } from "@/lib/entriesContext";
 
 const CALM_QUOTES = [
   { text: "This too shall pass. Be gentle with yourself.", author: "Ancient Wisdom" },
@@ -146,6 +149,31 @@ function WelcomeBanner({ onMigraineDetected }: { onMigraineDetected: () => void 
   );
 }
 
+function RiskBanner() {
+  const navigate = useNavigate();
+  return (
+    <button
+      onClick={() => navigate("/predictions")}
+      className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-left transition-opacity hover:opacity-90"
+      style={{
+        background: "linear-gradient(135deg, hsl(0 68% 96%), hsl(38 100% 96%))",
+        boxShadow: "0 1px 8px hsl(0 68% 50% / 0.10)",
+      }}
+    >
+      <div className="flex-shrink-0 rounded-full p-2" style={{ background: "hsl(0 68% 90%)" }}>
+        <AlertTriangle className="h-4 w-4" style={{ color: "hsl(0 68% 45%)" }} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold" style={{ color: "hsl(0 60% 30%)" }}>72% migraine risk today</p>
+        <p className="text-xs mt-0.5" style={{ color: "hsl(0 45% 45%)" }}>
+          Pressure drop · Low sleep · Low hydration
+        </p>
+      </div>
+      <ChevronRight className="h-4 w-4 flex-shrink-0" style={{ color: "hsl(0 45% 55%)" }} />
+    </button>
+  );
+}
+
 function WaterReminderCard() {
   return (
     <div className="flex items-center gap-3.5 rounded-2xl px-4 py-3.5"
@@ -224,14 +252,28 @@ function MedEffectivenessInsights({ entries }: { entries: UserEntry[] }) {
   );
 }
 
+function durationStr(min: number) {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
+}
+
 export default function MigraineTracker() {
-  const [userEntries, setUserEntries] = useState<UserEntry[]>([]);
+  const { entries, addEntry, loadDemoData, isDemoLoaded } = useEntries();
   const [showForm, setShowForm] = useState(false);
   const [alertResult, setAlertResult] = useState<AlertResult | null>(null);
 
-  const handleSave = (entry: UserEntry) => {
-    setUserEntries([entry, ...userEntries]);
+  const handleSave = useCallback((entry: UserEntry) => {
+    addEntry(entry);
     setShowForm(false);
+
+    const medStr = entry.meds.length ? ` · ${entry.meds.join(", ")}` : "";
+    toast.success("Migraine logged", {
+      description: `Severity ${entry.severity}/10 · ${durationStr(entry.durationMin)}${medStr}`,
+    });
+
     const muted = localStorage.getItem("mute-medical-alerts") === "true";
     if (!muted) {
       const result = checkMedicalAlert(entry);
@@ -239,11 +281,14 @@ export default function MigraineTracker() {
         setTimeout(() => setAlertResult(result), 50);
       }
     }
-  };
+  }, [addEntry]);
 
   return (
     <div className="space-y-5">
       <WelcomeBanner onMigraineDetected={() => setShowForm(true)} />
+
+      <RiskBanner />
+
       <WaterReminderCard />
 
       <Button
@@ -253,6 +298,16 @@ export default function MigraineTracker() {
       >
         <Plus className="h-5 w-5" /> Log a Migraine
       </Button>
+
+      {entries.length === 0 && !isDemoLoaded && (
+        <Button
+          variant="outline"
+          className="w-full flex items-center gap-2 rounded-2xl"
+          onClick={loadDemoData}
+        >
+          <FlaskConical className="h-4 w-4" /> Load Demo Data
+        </Button>
+      )}
 
       {showForm && (
         <LogMigraineForm
@@ -269,7 +324,7 @@ export default function MigraineTracker() {
         />
       )}
 
-      <MedEffectivenessInsights entries={userEntries} />
+      <MedEffectivenessInsights entries={entries} />
 
       <SoundscapeCard />
     </div>
