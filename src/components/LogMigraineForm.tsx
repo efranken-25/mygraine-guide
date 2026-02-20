@@ -4,6 +4,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { X } from "lucide-react";
 import HeadMap, { HEAD_AREAS } from "@/components/HeadMap";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
+const SYMPTOM_DEFINITIONS: Record<string, string> = {
+  "Throbbing Pain": "Pulsing",
+  "Nausea": "Queasy",
+  "Light Sensitivity": "Photophobia",
+  "Sound Sensitivity": "Hyperacusis",
+  "Aura": "Visual sparks",
+  "Eye Pain": "Ocular",
+  "Neck Tension": "Stiffness",
+  "Vomiting": "Throwing up",
+  "Dizziness": "Lightheaded",
+  "Severe Head Pain": "Intense ache",
+};
 
 export const SYMPTOM_OPTIONS = ["Throbbing Pain", "Nausea", "Light Sensitivity", "Sound Sensitivity", "Aura", "Eye Pain", "Neck Tension", "Vomiting", "Dizziness", "Severe Head Pain"];
 export const TRIGGER_OPTIONS = ["Stress", "Poor Sleep", "Caffeine", "Bright Light", "Skipped Meal", "Hormonal/Menstrual", "Rain/Pressure", "Travel", "Screen Time", "Alcohol"];
@@ -196,12 +210,25 @@ export default function LogMigraineForm({ onSave, onClose, initialDate, initialE
               >
                 I don't know
               </button>
-              {!symptoms.includes("Unknown") && SYMPTOM_OPTIONS.map((s) => (
-                <button key={s} onClick={() => toggle(symptoms, s, setSymptoms)}
-                  className={`px-3 py-1.5 rounded-full text-xs transition-all border ${symptoms.includes(s) ? "bg-primary/15 text-primary border-primary/40" : "bg-muted text-muted-foreground border-transparent"}`}>
-                  {s}
-                </button>
-              ))}
+              {!symptoms.includes("Unknown") && (
+                <TooltipProvider delayDuration={300}>
+                  {SYMPTOM_OPTIONS.map((s) => (
+                    <Tooltip key={s}>
+                      <TooltipTrigger asChild>
+                        <button onClick={() => toggle(symptoms, s, setSymptoms)}
+                          className={`px-3 py-1.5 rounded-full text-xs transition-all border ${symptoms.includes(s) ? "bg-primary/15 text-primary border-primary/40" : "bg-muted text-muted-foreground border-transparent"}`}>
+                          {s}
+                        </button>
+                      </TooltipTrigger>
+                      {SYMPTOM_DEFINITIONS[s] && (
+                        <TooltipContent side="top">
+                          <p>{SYMPTOM_DEFINITIONS[s]}</p>
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  ))}
+                </TooltipProvider>
+              )}
             </div>
           </div>
 

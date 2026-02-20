@@ -10,12 +10,28 @@ import { Zap, Clock, CheckCircle2 } from "lucide-react";
 import SeveritySlider from "@/components/SeveritySlider";
 import HeadMap from "@/components/HeadMap";
 import OtcRecommendationDialog from "@/components/OtcRecommendationDialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const SYMPTOMS = [
   "Nausea", "Aura", "Light sensitivity", "Sound sensitivity",
   "Vomiting", "Dizziness", "Neck pain", "Eye pain",
   "Fatigue", "Brain fog", "Tingling", "Visual disturbance",
 ];
+
+const SYMPTOM_DEFINITIONS: Record<string, string> = {
+  "Nausea": "Queasy",
+  "Aura": "Visual sparks",
+  "Light sensitivity": "Photophobia",
+  "Sound sensitivity": "Hyperacusis",
+  "Vomiting": "Throwing up",
+  "Dizziness": "Lightheaded",
+  "Neck pain": "Stiffness",
+  "Eye pain": "Ocular",
+  "Fatigue": "Tiredness",
+  "Brain fog": "Mental haze",
+  "Tingling": "Pins & needles",
+  "Visual disturbance": "Blurred vision",
+};
 
 export default function Index() {
   const { user } = useAuth();
@@ -105,12 +121,23 @@ export default function Index() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 gap-2">
-                {SYMPTOMS.map((s) => (
-                  <label key={s} className="flex items-center gap-2 rounded-lg border border-border p-2.5 text-sm cursor-pointer hover:bg-muted transition-colors">
-                    <Checkbox checked={symptoms.includes(s)} onCheckedChange={() => toggleSymptom(s)} />
-                    {s}
-                  </label>
-                ))}
+                <TooltipProvider delayDuration={300}>
+                  {SYMPTOMS.map((s) => (
+                    <Tooltip key={s}>
+                      <TooltipTrigger asChild>
+                        <label className="flex items-center gap-2 rounded-lg border border-border p-2.5 text-sm cursor-pointer hover:bg-muted transition-colors">
+                          <Checkbox checked={symptoms.includes(s)} onCheckedChange={() => toggleSymptom(s)} />
+                          {s}
+                        </label>
+                      </TooltipTrigger>
+                      {SYMPTOM_DEFINITIONS[s] && (
+                        <TooltipContent side="top">
+                          <p>{SYMPTOM_DEFINITIONS[s]}</p>
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  ))}
+                </TooltipProvider>
               </div>
             </CardContent>
           </Card>
