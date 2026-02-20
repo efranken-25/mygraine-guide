@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -6,9 +7,10 @@ import { Brain, Clock, Zap, TrendingUp, TrendingDown, Calendar, Pill, ArrowRight
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import ClinicalReport from "@/components/ClinicalReport";
 import { SAMPLE_MIGRAINE_DATA } from "@/lib/sampleMigraineData";
+import { useUserEntries } from "@/lib/userEntriesContext";
 
 // Use the most recent 8 March entries for history display (sorted newest first)
-const MOCK_ENTRIES = SAMPLE_MIGRAINE_DATA
+const SAMPLE_ENTRIES = SAMPLE_MIGRAINE_DATA
   .filter((e) => e.isoDate.startsWith("2026-03"))
   .sort((a, b) => b.isoDate.localeCompare(a.isoDate))
   .slice(0, 8);
@@ -19,7 +21,7 @@ const MED_EFFECTIVENESS = [
   { name: "Sumatriptan", dosage: "100mg", status: "active", period: "Acute use", avgSeverityBefore: null, avgSeverityDuring: null, frequencyBefore: null, frequencyDuring: null, verdict: "rescue" },
 ];
 
-const ALL_TRIGGERS = MOCK_ENTRIES.flatMap((e) => e.triggers);
+const ALL_TRIGGERS = SAMPLE_ENTRIES.flatMap((e) => e.triggers);
 const triggerCounts: Record<string, number> = {};
 ALL_TRIGGERS.forEach((t) => { triggerCounts[t] = (triggerCounts[t] || 0) + 1; });
 const TOP_TRIGGERS = Object.entries(triggerCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
@@ -45,7 +47,7 @@ function verdictStyle(v: string) {
   return { label: "Rescue med", color: "text-primary", bg: "bg-primary/10 border-primary/20" };
 }
 
-function HistoryTab({ allEntries }: { allEntries: typeof MOCK_ENTRIES }) {
+function HistoryTab({ allEntries }: { allEntries: typeof SAMPLE_ENTRIES }) {
   const avgSeverity = (allEntries.reduce((a, e) => a + e.severity, 0) / allEntries.length).toFixed(1);
   const avgDuration = Math.round(allEntries.reduce((a, e) => a + e.durationMin, 0) / allEntries.length);
 
@@ -257,6 +259,17 @@ function HistoryTab({ allEntries }: { allEntries: typeof MOCK_ENTRIES }) {
 }
 
 export default function MigraineHistory() {
+  const { userEntries } = useUserEntries();
+
+  // Merge user entries with sample entries for display
+  const allEntries = useMemo(() => {
+    const userAsSample = userEntries.map((e) => ({
+      ...e,
+      isoDate: "", // user entries don't have isoDate but we include them anyway
+    }));
+    return [...userAsSample, ...SAMPLE_ENTRIES].sort((a, b) => b.id - a.id).slice(0, 12);
+  }, [userEntries]);
+
   return (
     <div className="space-y-5">
       <div>
@@ -275,11 +288,11 @@ export default function MigraineHistory() {
         </TabsList>
 
         <TabsContent value="history" className="mt-4">
-          <HistoryTab allEntries={MOCK_ENTRIES} />
+          <HistoryTab allEntries={allEntries} />
         </TabsContent>
 
         <TabsContent value="report" className="mt-4">
-          <ClinicalReport entries={MOCK_ENTRIES} />
+          <ClinicalReport entries={allEntries} />
         </TabsContent>
       </Tabs>
     </div>

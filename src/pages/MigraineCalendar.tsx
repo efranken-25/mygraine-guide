@@ -9,6 +9,7 @@ import LogMigraineForm, { UserEntry } from "@/components/LogMigraineForm";
 import MedicalAlertDialog, { checkMedicalAlert, AlertResult } from "@/components/MedicalAlertDialog";
 import OtcRecommendationDialog from "@/components/OtcRecommendationDialog";
 import { SAMPLE_MIGRAINE_DATA, SampleEntry } from "@/lib/sampleMigraineData";
+import { useUserEntries } from "@/lib/userEntriesContext";
 
 // Drug class map for same-class detection
 const DRUG_CLASS: Record<string, string> = {
@@ -61,9 +62,9 @@ function getMedStrings(m: SampleEntry | UserEntry): string[] {
 }
 
 export default function MigraineCalendar() {
+  const { userEntries, addEntry: addUserEntry, updateEntry: updateUserEntry, deleteEntry: deleteUserEntry } = useUserEntries();
   const [currentMonth, setCurrentMonth] = useState(new Date(2026, 1, 1));
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
-  const [userEntries, setUserEntries] = useState<UserEntry[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [formDate, setFormDate] = useState<string | undefined>(undefined);
   const [editingEntry, setEditingEntry] = useState<UserEntry | undefined>(undefined);
@@ -111,7 +112,7 @@ export default function MigraineCalendar() {
 
   const deleteEntry = (entry: SampleEntry | UserEntry) => {
     if (isUserEntryFn(entry)) {
-      setUserEntries((prev) => prev.filter((e) => e.id !== entry.id));
+      deleteUserEntry(entry.id);
     } else {
       setDeletedSampleDates((prev) => new Set(prev).add(entry.isoDate));
     }
@@ -120,9 +121,15 @@ export default function MigraineCalendar() {
 
   const monthIsoStart = format(monthStart, "yyyy-MM-dd");
   const monthIsoEnd = format(monthEnd, "yyyy-MM-dd");
-  const monthMigraines = MIGRAINE_DATA.filter((m) => m.isoDate >= monthIsoStart && m.isoDate <= monthIsoEnd);
-  const avgSeverity = monthMigraines.length
-    ? (monthMigraines.reduce((a, m) => a + m.severity, 0) / monthMigraines.length).toFixed(1)
+  const sampleMigrainesInMonth = MIGRAINE_DATA.filter((m) => m.isoDate >= monthIsoStart && m.isoDate <= monthIsoEnd && !deletedSampleDates.has(m.isoDate));
+  // Count user entries that fall in this month by matching their "MMM d" date label to days in month
+  const userEntriesInMonth = userEntries.filter((e) => {
+    return daysInMonth.some((day) => format(day, "MMM d") === e.date);
+  });
+  const allMigrainesInMonth = [...sampleMigrainesInMonth, ...userEntriesInMonth];
+  const monthMigraineCount = allMigrainesInMonth.length;
+  const avgSeverity = monthMigraineCount
+    ? (allMigrainesInMonth.reduce((a, m) => a + m.severity, 0) / monthMigraineCount).toFixed(1)
     : "—";
 
   const selectedMigraine = selectedDay ? getMigraineForDay(selectedDay) : undefined;
@@ -159,7 +166,7 @@ export default function MigraineCalendar() {
       notes: "",
       isUserEntry: true,
     };
-    setUserEntries([entry, ...userEntries]);
+    addUserEntry(entry);
     setQuickAddDay(null);
     setSelectedDay(day);
     // Quick add has no meds, show OTC dialog
@@ -174,9 +181,9 @@ export default function MigraineCalendar() {
 
   const handleFormSave = (e: UserEntry) => {
     if (editingEntry) {
-      setUserEntries((prev) => prev.map((existing) => existing.id === editingEntry.id ? e : existing));
+      updateUserEntry(editingEntry.id, e);
     } else {
-      setUserEntries([e, ...userEntries]);
+      addUserEntry(e);
     }
     setSelectedDay(null);
     setShowForm(false);
@@ -208,7 +215,7 @@ export default function MigraineCalendar() {
       <div className="grid grid-cols-3 gap-3">
         <Card>
           <CardContent className="pt-4 pb-3 text-center">
-            <p className="text-2xl font-bold font-serif">{monthMigraines.length}</p>
+            <p className="text-2xl font-bold font-serif">{monthMigraineCount}</p>
             <p className="text-xs text-muted-foreground">Migraine days</p>
           </CardContent>
         </Card>
@@ -220,7 +227,7 @@ export default function MigraineCalendar() {
         </Card>
         <Card>
           <CardContent className="pt-4 pb-3 text-center">
-            <p className="text-2xl font-bold font-serif">{daysInMonth.length - monthMigraines.length}</p>
+            <p className="text-2xl font-bold font-serif">{daysInMonth.length - monthMigraineCount}</p>
             <p className="text-xs text-muted-foreground">Clear days</p>
           </CardContent>
         </Card>
