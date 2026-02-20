@@ -10,6 +10,11 @@ export const TRIGGER_OPTIONS = ["Stress", "Poor Sleep", "Caffeine", "Bright Ligh
 export const AREA_OPTIONS = HEAD_AREAS.map(a => a.label);
 export const MED_OPTIONS = ["Sumatriptan", "Rizatriptan", "Ubrogepant", "Rimegepant", "Ibuprofen", "Naproxen", "Eletriptan", "Lasmiditan", "None"];
 
+export interface MedEffectiveness {
+  helped: "yes" | "partial" | "no" | null;
+  timeToReliefMin: number | null;
+}
+
 export interface UserEntry {
   id: number;
   date: string;
@@ -19,6 +24,7 @@ export interface UserEntry {
   symptoms: string[];
   triggers: string[];
   meds: string[];
+  medEffectiveness?: Record<string, MedEffectiveness>;
   weather: string;
   sleep: number;
   caffeine: number;
@@ -49,12 +55,34 @@ export default function LogMigraineForm({ onSave, onClose, initialDate }: Props)
   const [caffeine, setCaffeine] = useState(0);
   const [notes, setNotes] = useState("");
   const [skippedMeal, setSkippedMeal] = useState(false);
+  const [medEffectiveness, setMedEffectiveness] = useState<Record<string, MedEffectiveness>>({});
+
+  const activeMeds = meds.filter((m) => m !== "None");
+
+  const setMedHelped = (med: string, helped: "yes" | "partial" | "no") => {
+    setMedEffectiveness((prev) => ({
+      ...prev,
+      [med]: { ...prev[med], helped, timeToReliefMin: prev[med]?.timeToReliefMin ?? null },
+    }));
+  };
+
+  const setMedTime = (med: string, val: number | null) => {
+    setMedEffectiveness((prev) => ({
+      ...prev,
+      [med]: { ...prev[med], helped: prev[med]?.helped ?? null, timeToReliefMin: val },
+    }));
+  };
 
   const toggle = (arr: string[], val: string, set: (v: string[]) => void) =>
     set(arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val]);
 
   const handleSave = () => {
     const areaLabel = areas.map(id => HEAD_AREAS.find(a => a.id === id)?.label ?? id).join(", ") || "Full Head";
+    const filteredMeds = meds.filter((m) => m !== "None");
+    const filteredEffectiveness: Record<string, MedEffectiveness> = {};
+    filteredMeds.forEach((m) => {
+      if (medEffectiveness[m]) filteredEffectiveness[m] = medEffectiveness[m];
+    });
     onSave({
       id: Date.now(),
       date: dateLabel,
@@ -63,7 +91,8 @@ export default function LogMigraineForm({ onSave, onClose, initialDate }: Props)
       area: areaLabel,
       symptoms,
       triggers,
-      meds: meds.filter((m) => m !== "None"),
+      meds: filteredMeds,
+      medEffectiveness: Object.keys(filteredEffectiveness).length ? filteredEffectiveness : undefined,
       weather: "—",
       sleep,
       caffeine,
@@ -177,6 +206,67 @@ export default function LogMigraineForm({ onSave, onClose, initialDate }: Props)
               ))}
             </div>
           </div>
+
+          {/* Medication effectiveness — shown when meds selected */}
+          {activeMeds.length > 0 && (
+            <div className="space-y-3 rounded-xl border border-border bg-muted/40 px-4 py-3">
+              <Label className="text-sm font-semibold">Medication effectiveness</Label>
+              {activeMeds.map((med) => {
+                const eff = medEffectiveness[med];
+                return (
+                  <div key={med} className="space-y-2 border-b border-border/50 pb-3 last:border-0 last:pb-0">
+                    <p className="text-xs font-medium text-foreground">{med}</p>
+
+                    {/* Did it help? */}
+                    <div className="space-y-1">
+                      <p className="text-[11px] text-muted-foreground">Did this medication help?</p>
+                      <div className="flex gap-2">
+                        {(["yes", "partial", "no"] as const).map((opt) => {
+                          const labels = { yes: "✓ Yes", partial: "〜 Partial", no: "✗ No" };
+                          const colors = {
+                            yes: eff?.helped === "yes" ? "bg-[hsl(var(--severity-low))]/20 text-[hsl(var(--severity-low))] border-[hsl(var(--severity-low))]/50" : "bg-muted text-muted-foreground border-transparent",
+                            partial: eff?.helped === "partial" ? "bg-[hsl(var(--warning))]/20 text-[hsl(var(--warning))] border-[hsl(var(--warning))]/50" : "bg-muted text-muted-foreground border-transparent",
+                            no: eff?.helped === "no" ? "bg-destructive/15 text-destructive border-destructive/40" : "bg-muted text-muted-foreground border-transparent",
+                          };
+                          return (
+                            <button
+                              key={opt}
+                              onClick={() => setMedHelped(med, opt)}
+                              className={`flex-1 px-2 py-1.5 rounded-lg text-[11px] font-medium border transition-all ${colors[opt]}`}
+                            >
+                              {labels[opt]}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Time to relief — only if helped */}
+                    {(eff?.helped === "yes" || eff?.helped === "partial") && (
+                      <div className="space-y-1">
+                        <p className="text-[11px] text-muted-foreground">Time to relief (minutes)</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[15, 30, 45, 60, 90, 120].map((t) => (
+                            <button
+                              key={t}
+                              onClick={() => setMedTime(med, eff?.timeToReliefMin === t ? null : t)}
+                              className={`px-3 py-1 rounded-full text-[11px] border transition-all ${
+                                eff?.timeToReliefMin === t
+                                  ? "bg-primary/15 text-primary border-primary/40"
+                                  : "bg-muted text-muted-foreground border-transparent"
+                              }`}
+                            >
+                              {t}m
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           {/* Sleep + Caffeine */}
           <div className="grid grid-cols-2 gap-3">
