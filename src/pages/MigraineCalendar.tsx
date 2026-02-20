@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Brain, Clock, Droplets, Wind, Pill, Plus, Trash2, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import LogMigraineForm, { UserEntry } from "@/components/LogMigraineForm";
+import MedicalAlertDialog, { checkMedicalAlert, AlertResult } from "@/components/MedicalAlertDialog";
 
 type MigraineDay = {
   date: Date;
@@ -110,7 +111,7 @@ export default function MigraineCalendar() {
   const [userEntries, setUserEntries] = useState<UserEntry[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [formDate, setFormDate] = useState<string | undefined>(undefined);
-  // Set of ISO date strings where the user has acknowledged the same-class warning
+  const [alertResult, setAlertResult] = useState<AlertResult | null>(null);
   const [dismissedWarnings, setDismissedWarnings] = useState<Set<string>>(new Set());
 
   const monthStart = startOfMonth(currentMonth);
@@ -417,10 +418,26 @@ export default function MigraineCalendar() {
         <Plus className="h-4 w-4" /> Log a Migraine Today
       </Button>
 
+      {alertResult && (
+        <MedicalAlertDialog
+          open={true}
+          onClose={() => setAlertResult(null)}
+          result={alertResult}
+        />
+      )}
+
       {showForm && (
         <LogMigraineForm
           initialDate={formDate}
-          onSave={(e) => { setUserEntries([e, ...userEntries]); setSelectedDay(null); }}
+          onSave={(e) => {
+            setUserEntries([e, ...userEntries]);
+            setSelectedDay(null);
+            setShowForm(false);
+            const result = checkMedicalAlert(e);
+            if (result.triggered) {
+              setTimeout(() => setAlertResult(result), 50);
+            }
+          }}
           onClose={() => setShowForm(false)}
         />
       )}
