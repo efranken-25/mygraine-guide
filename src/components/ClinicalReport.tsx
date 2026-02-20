@@ -843,7 +843,24 @@ function computeStats(filteredEntries: Entry[]) {
 
 export default function ClinicalReport({ entries }: Props) {
   const today = new Date();
-  const defaultFrom = new Date(today.getFullYear(), today.getMonth() - 3, today.getDate());
+
+  // Determine default date range: cover all entries if possible, else last 3 months
+  const defaultFrom = useMemo(() => {
+    if (!entries.length) return new Date(today.getFullYear(), today.getMonth() - 3, today.getDate());
+    const currentYear = today.getFullYear();
+    const dates = entries.map((e) => {
+      try {
+        if (/^\d{4}-\d{2}-\d{2}/.test(e.date)) return parseISO(e.date);
+        // Try current year first, then previous year
+        let d = parse(e.date, "MMM d", new Date(currentYear, 0, 1));
+        if (d > today) d = parse(e.date, "MMM d", new Date(currentYear - 1, 0, 1));
+        return d;
+      } catch { return today; }
+    }).filter((d) => !isNaN(d.getTime()));
+    if (!dates.length) return new Date(today.getFullYear(), today.getMonth() - 3, today.getDate());
+    return new Date(Math.min(...dates.map((d) => d.getTime())));
+  }, [entries]);
+
   const [dateFrom, setDateFrom] = useState<Date>(defaultFrom);
   const [dateTo, setDateTo] = useState<Date>(today);
   const [patientNotes, setPatientNotes] = useState("");
@@ -863,14 +880,14 @@ export default function ClinicalReport({ entries }: Props) {
         if (/^\d{4}-\d{2}-\d{2}/.test(raw)) {
           return isWithinInterval(parseISO(raw), interval);
         }
-        // "MMM d" format: "Mar 26" — assume current year, then try prior year if it falls outside
-        const currentYear = new Date().getFullYear();
-        let d = parse(raw, "MMM d", new Date(currentYear, 0, 1));
-        if (!isWithinInterval(d, interval)) {
-          // try previous year (e.g. entry from last Dec shown in Jan)
-          d = parse(raw, "MMM d", new Date(currentYear - 1, 0, 1));
+        // "MMM d" format: "Mar 26" — try the year that contains the interval midpoint first,
+        // then one year back and one year forward, picking whichever falls within the interval.
+        const midYear = new Date((dateFrom.getTime() + dateTo.getTime()) / 2).getFullYear();
+        for (const yr of [midYear, midYear - 1, midYear + 1]) {
+          const d = parse(raw, "MMM d", new Date(yr, 0, 1));
+          if (!isNaN(d.getTime()) && isWithinInterval(d, interval)) return true;
         }
-        return isWithinInterval(d, interval);
+        return false;
       } catch {
         return true;
       }
