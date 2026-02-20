@@ -3,7 +3,7 @@ import { format, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval, getDay,
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Brain, Clock, Droplets, Wind, Pill, Plus, Trash2, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Brain, Clock, Droplets, Wind, Pill, Plus, Trash2, AlertTriangle, CheckCircle2, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import LogMigraineForm, { UserEntry } from "@/components/LogMigraineForm";
 import MedicalAlertDialog, { checkMedicalAlert, AlertResult } from "@/components/MedicalAlertDialog";
@@ -111,9 +111,11 @@ export default function MigraineCalendar() {
   const [userEntries, setUserEntries] = useState<UserEntry[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [formDate, setFormDate] = useState<string | undefined>(undefined);
+  const [editingEntry, setEditingEntry] = useState<UserEntry | undefined>(undefined);
   const [alertResult, setAlertResult] = useState<AlertResult | null>(null);
   const [dismissedWarnings, setDismissedWarnings] = useState<Set<string>>(new Set());
   const [deletedSampleDates, setDeletedSampleDates] = useState<Set<string>>(new Set());
+  const [quickAddDay, setQuickAddDay] = useState<Date | null>(null);
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -167,7 +169,7 @@ export default function MigraineCalendar() {
   const selectedMigraine = selectedDay ? getMigraineForDay(selectedDay) : undefined;
   const selectedWarning = selectedDay ? hasSameClassWarning(selectedDay) : null;
 
-  const getWater = (m: MigraineDay | UserEntry) => "waterMl" in m ? `${(m.waterMl / 1000).toFixed(1)}L` : "—";
+  const getWater = (m: MigraineDay | UserEntry) => "waterMl" in m ? `${(m.waterMl / 1000).toFixed(1)}L` : m.water > 0 ? `${m.water} gl` : "—";
   const getStress = (m: MigraineDay | UserEntry) => "stressLevel" in m ? m.stressLevel : m.stress;
   const getSleep = (m: MigraineDay | UserEntry) => "sleepHours" in m ? m.sleepHours : m.sleep;
   const getCaffeine = (m: MigraineDay | UserEntry) => "caffeinesMg" in m ? `${m.caffeinesMg}mg` : `${m.caffeine}mg`;
@@ -177,6 +179,56 @@ export default function MigraineCalendar() {
     return meds.length > 0 ? meds.join(", ") : null;
   };
   const isUserEntryFn = (m: MigraineDay | UserEntry): m is UserEntry => "isUserEntry" in m;
+
+  const quickAdd = (day: Date, severity: number) => {
+    const dateLabel = format(day, "MMM d");
+    const entry: UserEntry = {
+      id: Date.now(),
+      date: dateLabel,
+      severity,
+      durationMin: 60,
+      area: "Full Head",
+      symptoms: [],
+      triggers: [],
+      meds: [],
+      weather: "—",
+      sleep: 0,
+      caffeine: 0,
+      water: 0,
+      stress: severity >= 8 ? "Very High" : severity >= 5 ? "High" : "Moderate",
+      skippedMeal: false,
+      notes: "",
+      isUserEntry: true,
+    };
+    setUserEntries([entry, ...userEntries]);
+    setQuickAddDay(null);
+    setSelectedDay(day);
+  };
+
+  const openEditForm = (entry: UserEntry) => {
+    setEditingEntry(entry);
+    setFormDate(entry.date);
+    setShowForm(true);
+  };
+
+  const handleFormSave = (e: UserEntry) => {
+    if (editingEntry) {
+      // Replace existing entry
+      setUserEntries((prev) => prev.map((existing) => existing.id === editingEntry.id ? e : existing));
+    } else {
+      setUserEntries([e, ...userEntries]);
+    }
+    setSelectedDay(null);
+    setShowForm(false);
+    setEditingEntry(undefined);
+    const muted = localStorage.getItem("mute-medical-alerts") === "true";
+    if (!muted) {
+      const result = checkMedicalAlert(e);
+      if (result.triggered) {
+        setTimeout(() => setAlertResult(result), 50);
+      }
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -317,6 +369,16 @@ export default function MigraineCalendar() {
                 <span className={cn("inline-flex items-center justify-center h-6 w-6 rounded-full text-xs font-bold text-white", severityDot(selectedMigraine.severity))}>
                   {selectedMigraine.severity}
                 </span>
+                {/* Edit button for user entries */}
+                {isUserEntryFn(selectedMigraine) && (
+                  <button
+                    onClick={() => openEditForm(selectedMigraine)}
+                    className="ml-1 rounded-full p-1.5 hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+                    title="Edit this entry"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                )}
                 {/* Delete button */}
                 <button
                     onClick={() => deleteEntry(selectedMigraine)}
@@ -399,17 +461,50 @@ export default function MigraineCalendar() {
 
       {selectedDay && !selectedMigraine && (
         <Card className="border-dashed border-border">
-          <CardContent className="p-4 space-y-3 text-center">
-            <p className="text-sm text-muted-foreground">{format(selectedDay, "EEEE, MMM d")} — no migraine recorded.</p>
-            <Button
-              className="w-full flex items-center gap-2"
-              onClick={() => {
-                setFormDate(format(selectedDay, "MMM d"));
-                setShowForm(true);
-              }}
-            >
-              <Plus className="h-4 w-4" /> Log a Migraine for This Day
-            </Button>
+          <CardContent className="p-4 space-y-3">
+            <p className="text-sm text-muted-foreground text-center">{format(selectedDay, "EEEE, MMM d")} — no migraine recorded.</p>
+            
+            {quickAddDay && isSameDay(quickAddDay, selectedDay) ? (
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-center">How severe? Tap to log instantly</p>
+                <div className="flex items-center gap-1">
+                  {[1,2,3,4,5,6,7,8,9,10].map((n) => (
+                    <button
+                      key={n}
+                      onClick={() => quickAdd(selectedDay, n)}
+                      className={`flex-1 h-9 rounded text-xs font-bold transition-all ${
+                        n <= 3 ? "bg-[hsl(var(--severity-low))] text-white" : n <= 6 ? "bg-[hsl(var(--severity-mid))] text-white" : "bg-destructive text-white"
+                      }`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+                <button onClick={() => setQuickAddDay(null)} className="w-full text-xs text-muted-foreground hover:text-foreground py-1">
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Button
+                  className="flex-1 flex items-center gap-2"
+                  onClick={() => setQuickAddDay(selectedDay)}
+                >
+                  <Plus className="h-4 w-4" /> Quick Log
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex items-center gap-2"
+                  onClick={() => {
+                    setEditingEntry(undefined);
+                    setFormDate(format(selectedDay, "MMM d"));
+                    setShowForm(true);
+                  }}
+                >
+                  Full Details
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -418,7 +513,7 @@ export default function MigraineCalendar() {
       <Button
         variant="outline"
         className="w-full flex items-center gap-2"
-        onClick={() => { setFormDate(undefined); setShowForm(true); }}
+        onClick={() => { setEditingEntry(undefined); setFormDate(undefined); setShowForm(true); }}
       >
         <Plus className="h-4 w-4" /> Log a Migraine Today
       </Button>
@@ -434,19 +529,9 @@ export default function MigraineCalendar() {
       {showForm && (
         <LogMigraineForm
           initialDate={formDate}
-          onSave={(e) => {
-            setUserEntries([e, ...userEntries]);
-            setSelectedDay(null);
-            setShowForm(false);
-            const muted = localStorage.getItem("mute-medical-alerts") === "true";
-            if (!muted) {
-              const result = checkMedicalAlert(e);
-              if (result.triggered) {
-                setTimeout(() => setAlertResult(result), 50);
-              }
-            }
-          }}
-          onClose={() => setShowForm(false)}
+          initialEntry={editingEntry}
+          onSave={handleFormSave}
+          onClose={() => { setShowForm(false); setEditingEntry(undefined); }}
         />
       )}
     </div>

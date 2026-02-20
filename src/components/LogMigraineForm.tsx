@@ -40,27 +40,28 @@ interface Props {
   onSave: (e: UserEntry) => void;
   onClose: () => void;
   initialDate?: string;
+  initialEntry?: UserEntry;
 }
 
-export default function LogMigraineForm({ onSave, onClose, initialDate }: Props) {
+export default function LogMigraineForm({ onSave, onClose, initialDate, initialEntry }: Props) {
   const today = new Date();
-  const dateLabel = initialDate ?? today.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const dateLabel = initialDate ?? initialEntry?.date ?? today.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
-  const [severity, setSeverity] = useState(5);
-  const [areas, setAreas] = useState<string[]>(["full"]);
-  const [durationHours, setDurationHours] = useState(1);
-  const [durationMins, setDurationMins] = useState(0);
-  const [symptoms, setSymptoms] = useState<string[]>([]);
-  const [triggers, setTriggers] = useState<string[]>([]);
-  const [meds, setMeds] = useState<string[]>([]);
-  const [caffeine, setCaffeine] = useState(0);
-  const [water, setWater] = useState(0);
-  const [notes, setNotes] = useState("");
+  const [severity, setSeverity] = useState(initialEntry?.severity ?? 5);
+  const [areas, setAreas] = useState<string[]>(initialEntry ? [initialEntry.area] : ["full"]);
+  const [durationHours, setDurationHours] = useState(initialEntry ? Math.floor(initialEntry.durationMin / 60) : 1);
+  const [durationMins, setDurationMins] = useState(initialEntry ? initialEntry.durationMin % 60 : 0);
+  const [symptoms, setSymptoms] = useState<string[]>(initialEntry?.symptoms ?? []);
+  const [triggers, setTriggers] = useState<string[]>(initialEntry?.triggers ?? []);
+  const [meds, setMeds] = useState<string[]>(initialEntry?.meds ?? []);
+  const [caffeine, setCaffeine] = useState(initialEntry?.caffeine ?? 0);
+  const [water, setWater] = useState(initialEntry?.water ?? 0);
+  const [notes, setNotes] = useState(initialEntry?.notes ?? "");
   const [caffeineUnknown, setCaffeineUnknown] = useState(false);
   const [waterUnknown, setWaterUnknown] = useState(false);
-  const [skippedMeal, setSkippedMeal] = useState(false);
-  const [hormonalStatus, setHormonalStatus] = useState<string[]>([]);
-  const [medEffectiveness, setMedEffectiveness] = useState<Record<string, MedEffectiveness>>({});
+  const [skippedMeal, setSkippedMeal] = useState(initialEntry?.skippedMeal ?? false);
+  const [hormonalStatus, setHormonalStatus] = useState<string[]>(initialEntry?.hormonalStatus ?? []);
+  const [medEffectiveness, setMedEffectiveness] = useState<Record<string, MedEffectiveness>>(initialEntry?.medEffectiveness ?? {});
 
   const activeMeds = meds.filter((m) => m !== "None");
 
@@ -89,7 +90,7 @@ export default function LogMigraineForm({ onSave, onClose, initialDate }: Props)
       if (medEffectiveness[m]) filteredEffectiveness[m] = medEffectiveness[m];
     });
     onSave({
-      id: Date.now(),
+      id: initialEntry?.id ?? Date.now(),
       date: dateLabel,
       severity,
       durationMin: durationHours * 60 + durationMins,
@@ -98,8 +99,8 @@ export default function LogMigraineForm({ onSave, onClose, initialDate }: Props)
       triggers,
       meds: filteredMeds,
       medEffectiveness: Object.keys(filteredEffectiveness).length ? filteredEffectiveness : undefined,
-      weather: "—",
-      sleep: 0,
+      weather: initialEntry?.weather ?? "—",
+      sleep: initialEntry?.sleep ?? 0,
       caffeine,
       water,
       stress: severity >= 8 ? "Very High" : severity >= 5 ? "High" : "Moderate",
