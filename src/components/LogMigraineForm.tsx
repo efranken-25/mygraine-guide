@@ -416,12 +416,9 @@ export default function LogMigraineForm({ onSave, onClose, initialDate, initialE
             <Input placeholder="Any additional context…" value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
 
-          <Button className="w-full" onClick={handleSave} disabled={symptoms.length === 0 && triggers.length === 0}>
+          <Button className="w-full" onClick={handleSave}>
             Save Entry
           </Button>
-          {symptoms.length === 0 && triggers.length === 0 && (
-            <p className="text-[10px] text-center text-muted-foreground -mt-3">Select at least one symptom or trigger to save</p>
-          )}
         </div>
       </div>
     </div>
