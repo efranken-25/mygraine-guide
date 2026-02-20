@@ -2,7 +2,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider, useAuth } from "@/lib/auth";
 import AppLayout from "@/components/AppLayout";
 import MigraineTracker from "@/pages/MigraineTracker";
 import MigraineHistory from "@/pages/MigraineHistory";
@@ -12,31 +13,44 @@ import Recommendations from "@/pages/Recommendations";
 import MedicationsPage from "@/pages/MedicationsPage";
 import Insurance from "@/pages/Insurance";
 import FindCare from "@/pages/FindCare";
+import Auth from "@/pages/Auth";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
+
+function RequireAuth({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/auth" replace />;
+  return <>{children}</>;
+}
+
+const AppRoutes = () => (
+  <Routes>
+    <Route path="/auth" element={<Auth />} />
+    <Route path="/" element={<RequireAuth><AppLayout><MigraineTracker /></AppLayout></RequireAuth>} />
+    <Route path="/history" element={<RequireAuth><AppLayout><MigraineHistory /></AppLayout></RequireAuth>} />
+    <Route path="/calendar" element={<RequireAuth><AppLayout><MigraineCalendar /></AppLayout></RequireAuth>} />
+    <Route path="/predictions" element={<RequireAuth><AppLayout><Predictions /></AppLayout></RequireAuth>} />
+    <Route path="/recommendations" element={<RequireAuth><AppLayout><Recommendations /></AppLayout></RequireAuth>} />
+    <Route path="/medications" element={<RequireAuth><AppLayout><MedicationsPage /></AppLayout></RequireAuth>} />
+    <Route path="/insurance" element={<RequireAuth><AppLayout><Insurance /></AppLayout></RequireAuth>} />
+    <Route path="/find-care" element={<RequireAuth><AppLayout><FindCare /></AppLayout></RequireAuth>} />
+    <Route path="*" element={<NotFound />} />
+  </Routes>
+);
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<AppLayout><MigraineTracker /></AppLayout>} />
-          <Route path="/history" element={<AppLayout><MigraineHistory /></AppLayout>} />
-          <Route path="/calendar" element={<AppLayout><MigraineCalendar /></AppLayout>} />
-          <Route path="/predictions" element={<AppLayout><Predictions /></AppLayout>} />
-          <Route path="/recommendations" element={<AppLayout><Recommendations /></AppLayout>} />
-          <Route path="/medications" element={<AppLayout><MedicationsPage /></AppLayout>} />
-          <Route path="/insurance" element={<AppLayout><Insurance /></AppLayout>} />
-          <Route path="/find-care" element={<AppLayout><FindCare /></AppLayout>} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+      <AuthProvider>
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
 
 export default App;
-
