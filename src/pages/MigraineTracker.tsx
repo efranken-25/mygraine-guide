@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Zap } from "lucide-react";
 import LogMigraineForm, { UserEntry } from "@/components/LogMigraineForm";
 import SoundscapeCard from "@/components/SoundscapeCard";
 import { Droplets } from "lucide-react";
@@ -34,11 +34,25 @@ function Bloom({ cx, cy, r, petals, fill, opacity }: { cx: number; cy: number; r
   );
 }
 
-function WelcomeBanner() {
+const MIGRAINE_KEYWORDS = ["migraine", "headache", "head hurts", "pain", "throbbing", "pounding", "aura", "nausea", "head ache"];
+
+function WelcomeBanner({ onMigraineDetected }: { onMigraineDetected: () => void }) {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const quoteIdx = new Date().getDate() % CALM_QUOTES.length;
   const quote = CALM_QUOTES[quoteIdx];
+  const [userInput, setUserInput] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleSubmit = () => {
+    if (!userInput.trim()) return;
+    const lower = userInput.toLowerCase();
+    const hasMigraine = MIGRAINE_KEYWORDS.some((kw) => lower.includes(kw));
+    setSubmitted(true);
+    if (hasMigraine) {
+      setTimeout(() => onMigraineDetected(), 600);
+    }
+  };
 
   return (
     <div className="relative rounded-3xl overflow-hidden" style={{
@@ -74,14 +88,59 @@ function WelcomeBanner() {
             How are you feeling?
           </h2>
         </div>
-        <div className="rounded-xl px-3.5 py-2.5" style={{ background: "hsl(0 0% 100% / 0.48)", backdropFilter: "blur(4px)" }}>
-          <p className="text-[12.5px] font-serif italic leading-relaxed" style={{ color: "hsl(262 35% 28%)" }}>
-            "{quote.text}"
-          </p>
-          <p className="text-[10px] mt-1 font-medium" style={{ color: "hsl(262 25% 50%)" }}>
-            — {quote.author}
-          </p>
-        </div>
+
+        {submitted ? (
+          <div className="rounded-xl px-3.5 py-2.5" style={{ background: "hsl(0 0% 100% / 0.55)", backdropFilter: "blur(4px)" }}>
+            <p className="text-[12.5px] leading-relaxed" style={{ color: "hsl(262 35% 28%)" }}>
+              "{userInput}"
+            </p>
+            <button
+              onClick={() => { setSubmitted(false); setUserInput(""); }}
+              className="text-[10px] mt-1 font-medium underline"
+              style={{ color: "hsl(262 25% 50%)" }}
+            >
+              Update
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="rounded-xl px-3.5 py-2.5" style={{ background: "hsl(0 0% 100% / 0.48)", backdropFilter: "blur(4px)" }}>
+              <p className="text-[12.5px] font-serif italic leading-relaxed" style={{ color: "hsl(262 35% 28%)" }}>
+                "{quote.text}"
+              </p>
+              <p className="text-[10px] mt-1 font-medium" style={{ color: "hsl(262 25% 50%)" }}>
+                — {quote.author}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={userInput}
+                onChange={(e) => setUserInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+                placeholder="Tell me how you feel…"
+                className="flex-1 rounded-xl px-3.5 py-2 text-[12.5px] border-0 outline-none"
+                style={{
+                  background: "hsl(0 0% 100% / 0.6)",
+                  backdropFilter: "blur(4px)",
+                  color: "hsl(262 35% 20%)",
+                }}
+              />
+              {userInput.trim() && (
+                <button
+                  onClick={handleSubmit}
+                  className="rounded-xl px-3 py-2 text-[11px] font-semibold transition-all"
+                  style={{
+                    background: "hsl(262 45% 50%)",
+                    color: "white",
+                  }}
+                >
+                  Share
+                </button>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -99,6 +158,67 @@ function WaterReminderCard() {
         <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "hsl(197 45% 38%)" }}>
           Dehydration is a top migraine trigger — aim for 8 glasses today.
         </p>
+      </div>
+    </div>
+  );
+}
+
+function MedEffectivenessInsights({ entries }: { entries: UserEntry[] }) {
+  const insights = useMemo(() => {
+    const stats: Record<string, { totalTime: number; count: number; helped: number; total: number }> = {};
+    entries.forEach((entry) => {
+      if (!entry.medEffectiveness) return;
+      Object.entries(entry.medEffectiveness).forEach(([med, eff]) => {
+        if (!stats[med]) stats[med] = { totalTime: 0, count: 0, helped: 0, total: 0 };
+        stats[med].total += 1;
+        if (eff.helped === "yes" || eff.helped === "partial") {
+          stats[med].helped += 1;
+          if (eff.timeToReliefMin) {
+            stats[med].totalTime += eff.timeToReliefMin;
+            stats[med].count += 1;
+          }
+        }
+      });
+    });
+    return Object.entries(stats)
+      .filter(([, s]) => s.total >= 1)
+      .map(([med, s]) => ({
+        med,
+        avgTime: s.count > 0 ? Math.round(s.totalTime / s.count) : null,
+        helpRate: Math.round((s.helped / s.total) * 100),
+        total: s.total,
+      }));
+  }, [entries]);
+
+  if (insights.length === 0) return null;
+
+  return (
+    <div className="rounded-2xl overflow-hidden border border-border">
+      <div className="px-4 py-3 flex items-center gap-2" style={{ background: "linear-gradient(135deg, hsl(262 55% 94%), hsl(195 50% 91%))" }}>
+        <Zap className="h-4 w-4" style={{ color: "hsl(265 50% 48%)" }} />
+        <p className="text-sm font-semibold" style={{ color: "hsl(262 40% 24%)" }}>Your medication insights</p>
+      </div>
+      <div className="divide-y divide-border">
+        {insights.map(({ med, avgTime, helpRate, total }) => (
+          <div key={med} className="px-4 py-3 flex items-center justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">{med}</p>
+              {avgTime ? (
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Relieves pain within <span className="font-semibold text-foreground">{avgTime} mins</span> on average
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground mt-0.5">No relief time logged yet</p>
+              )}
+            </div>
+            <div className="text-right flex-shrink-0">
+              <p className={`text-sm font-bold ${helpRate >= 70 ? "text-[hsl(var(--severity-low))]" : helpRate >= 40 ? "text-[hsl(var(--warning))]" : "text-destructive"}`}>
+                {helpRate}%
+              </p>
+              <p className="text-[10px] text-muted-foreground">effective ({total}x)</p>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -123,7 +243,7 @@ export default function MigraineTracker() {
 
   return (
     <div className="space-y-5">
-      <WelcomeBanner />
+      <WelcomeBanner onMigraineDetected={() => setShowForm(true)} />
       <WaterReminderCard />
 
       <Button
@@ -148,6 +268,8 @@ export default function MigraineTracker() {
           result={alertResult}
         />
       )}
+
+      <MedEffectivenessInsights entries={userEntries} />
 
       <SoundscapeCard />
     </div>
