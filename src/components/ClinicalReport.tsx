@@ -186,7 +186,7 @@ async function exportClinicalPDF(
   const bulletList = (items: string[], numbered = false) => {
     items.forEach((item, i) => {
       newPageIfNeeded(LH + 1);
-      const prefix = numbered ? `${i + 1}.` : "–";
+      const prefix = numbered ? `${i + 1}.` : "-";
       pdf.setFontSize(8.5);
       pdf.setFont("helvetica", numbered ? "bold" : "normal");
       setTxt(C.mid);
@@ -206,7 +206,7 @@ async function exportClinicalPDF(
   // ASCII bar (0–maxVal mapped to barWidth chars)
   const asciiBar = (val: number, maxVal: number, maxW = 40): string => {
     const filled = Math.round((val / maxVal) * maxW);
-    return "█".repeat(filled) + "░".repeat(maxW - filled);
+    return "#".repeat(filled) + "-".repeat(maxW - filled);
   };
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -225,7 +225,7 @@ async function exportClinicalPDF(
   pdf.setFontSize(9);
   pdf.setFont("helvetica", "normal");
   setTxt([200, 200, 200]);
-  pdf.text(`Report period:  ${format(dateFrom, "MMMM d, yyyy")} – ${format(dateTo, "MMMM d, yyyy")}`, M, 24);
+  pdf.text(`Report period:  ${format(dateFrom, "MMMM d, yyyy")} - ${format(dateTo, "MMMM d, yyyy")}`, M, 24);
   pdf.text(`Generated:  ${format(new Date(), "MMMM d, yyyy 'at' h:mm a")}`, M, 30);
   pdf.text(`Total episodes in period:  ${filteredEntries.length}`, M, 36);
 
@@ -253,8 +253,8 @@ async function exportClinicalPDF(
     const kpiRows = [
       ["Total episodes", String(filteredEntries.length), "Average severity", stats.avgSev.toFixed(1) + " / 10"],
       ["Average duration", minToHm(Math.round(stats.avgDur)), "Longest episode", minToHm(maxDur)],
-      ["Shortest episode", minToHm(minDur), "Severe (≥ 7/10)", `${severeCount}  (${Math.round((severeCount/filteredEntries.length)*100)}%)`],
-      ["Moderate (4–6)", `${modCount}  (${Math.round((modCount/filteredEntries.length)*100)}%)`, "Mild (< 4)", `${mildCount}  (${Math.round((mildCount/filteredEntries.length)*100)}%)`],
+      ["Shortest episode", minToHm(minDur), "Severe (>=7/10)", `${severeCount}  (${Math.round((severeCount/filteredEntries.length)*100)}%)`],
+      ["Moderate (4-6)", `${modCount}  (${Math.round((modCount/filteredEntries.length)*100)}%)`, "Mild (< 4)", `${mildCount}  (${Math.round((mildCount/filteredEntries.length)*100)}%)`],
       ["Skipped meals logged", String(skippedMeals), "With hormonal status", String(withHormonal)],
       ["Unique triggers logged", String(new Set(filteredEntries.flatMap(e => e.triggers)).size), "Unique symptoms logged", String(new Set(filteredEntries.flatMap(e => e.symptoms)).size)],
     ];
@@ -294,7 +294,7 @@ async function exportClinicalPDF(
     setTxt(C.mid);
     pdf.text("Date", M + 1, y + 4);
     pdf.text("Sev", M + 24, y + 4);
-    pdf.text("Bar (1–10)", M + 34, y + 4);
+    pdf.text("Bar (1-10)", M + 34, y + 4);
     pdf.text("Duration", M + 134, y + 4);
     pdf.text("Trend", M + 160, y + 4);
     setFill(C.bg2);
@@ -336,7 +336,7 @@ async function exportClinicalPDF(
       // Trend arrow vs previous
       if (prevSev !== null) {
         const delta = sev - prevSev;
-        const arrow = delta > 0 ? "▲ +" + delta : delta < 0 ? "▼ " + delta : "= 0";
+        const arrow = delta > 0 ? "^ +" + delta : delta < 0 ? "v " + delta : "= 0";
         const ac = delta > 0 ? C.sevHigh : delta < 0 ? C.sevLow : C.mid;
         pdf.setFont("helvetica", "bold");
         setTxt(ac);
@@ -487,14 +487,14 @@ async function exportClinicalPDF(
 
         const sleepBuckets: Record<string, { count: number; totalSev: number }> = {
           "< 5h": { count: 0, totalSev: 0 },
-          "5–6h": { count: 0, totalSev: 0 },
-          "6–7h": { count: 0, totalSev: 0 },
-          "7–8h": { count: 0, totalSev: 0 },
+          "5-6h": { count: 0, totalSev: 0 },
+          "6-7h": { count: 0, totalSev: 0 },
+          "7-8h": { count: 0, totalSev: 0 },
           "> 8h": { count: 0, totalSev: 0 },
         };
         withSleep.forEach(e => {
           const s = e.sleep!;
-          const k = s < 5 ? "< 5h" : s < 6 ? "5–6h" : s < 7 ? "6–7h" : s < 8 ? "7–8h" : "> 8h";
+          const k = s < 5 ? "< 5h" : s < 6 ? "5-6h" : s < 7 ? "6-7h" : s < 8 ? "7-8h" : "> 8h";
           sleepBuckets[k].count++;
           sleepBuckets[k].totalSev += e.severity;
         });
@@ -527,14 +527,14 @@ async function exportClinicalPDF(
 
         const cafBuckets: Record<string, { count: number; totalSev: number }> = {
           "0mg": { count: 0, totalSev: 0 },
-          "1–100mg": { count: 0, totalSev: 0 },
-          "101–200mg": { count: 0, totalSev: 0 },
-          "201–300mg": { count: 0, totalSev: 0 },
+          "1-100mg": { count: 0, totalSev: 0 },
+          "101-200mg": { count: 0, totalSev: 0 },
+          "201-300mg": { count: 0, totalSev: 0 },
           "> 300mg": { count: 0, totalSev: 0 },
         };
         withCaffeine.forEach(e => {
           const c = e.caffeine!;
-          const k = c === 0 ? "0mg" : c <= 100 ? "1–100mg" : c <= 200 ? "101–200mg" : c <= 300 ? "201–300mg" : "> 300mg";
+          const k = c === 0 ? "0mg" : c <= 100 ? "1-100mg" : c <= 200 ? "101-200mg" : c <= 300 ? "201-300mg" : "> 300mg";
           cafBuckets[k].count++;
           cafBuckets[k].totalSev += e.severity;
         });
@@ -721,13 +721,13 @@ async function exportClinicalPDF(
     pdf.setFontSize(7);
     pdf.setFont("helvetica", "normal");
     setTxt(C.mid);
-    const symLine = "Symptoms: " + (entry.symptoms.join(" · ") || "—");
+    const symLine = "Symptoms: " + (entry.symptoms.join(", ") || "None");
     pdf.text(pdf.splitTextToSize(symLine, CW - 10)[0], M + 5, y + 8);
 
     // Row 3: triggers and hormonal
     if (rowH >= 9) {
       setTxt(C.muted);
-      const trigLine = "Triggers: " + (entry.triggers.join(", ") || "—");
+      const trigLine = "Triggers: " + (entry.triggers.join(", ") || "None");
       pdf.text(pdf.splitTextToSize(trigLine, CW / 2 - 8)[0], M + 5, y + 11.5);
 
       if (entry.hormonalStatus?.length) {
@@ -758,7 +758,7 @@ async function exportClinicalPDF(
     pdf.setFontSize(7.5);
     pdf.setFont("helvetica", "italic");
     setTxt(C.muted);
-    pdf.text("AI-assisted · for clinical context only · not a substitute for professional medical assessment", M, y);
+    pdf.text("AI-assisted - for clinical context only - not a substitute for professional medical assessment", M, y);
     y += 6;
 
     const aiSections: [string, string | string[], boolean?][] = [
@@ -828,7 +828,7 @@ async function exportClinicalPDF(
     pdf.setFont("helvetica", "normal");
     setTxt([200, 200, 200]);
     pdf.text(
-      `Migraine Clinical Report  ·  ${format(dateFrom, "MMM d, yyyy")} – ${format(dateTo, "MMM d, yyyy")}  ·  ${filteredEntries.length} episodes`,
+      `Migraine Clinical Report  |  ${format(dateFrom, "MMM d, yyyy")} - ${format(dateTo, "MMM d, yyyy")}  |  ${filteredEntries.length} episodes`,
       M,
       A4_H - 4
     );
