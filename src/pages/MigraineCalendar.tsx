@@ -438,9 +438,12 @@ export default function MigraineCalendar() {
             setUserEntries([e, ...userEntries]);
             setSelectedDay(null);
             setShowForm(false);
-            const result = checkMedicalAlert(e);
-            if (result.triggered) {
-              setTimeout(() => setAlertResult(result), 50);
+            const muted = localStorage.getItem("mute-medical-alerts") === "true";
+            if (!muted) {
+              const result = checkMedicalAlert(e);
+              if (result.triggered) {
+                setTimeout(() => setAlertResult(result), 50);
+              }
             }
           }}
           onClose={() => setShowForm(false)}
