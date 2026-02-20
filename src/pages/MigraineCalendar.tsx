@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { format, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval, getDay, subMonths, addMonths, addDays, subDays } from "date-fns";
+import { format, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval, getDay, subMonths, addMonths, subDays, parseISO } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,22 +8,7 @@ import { cn } from "@/lib/utils";
 import LogMigraineForm, { UserEntry } from "@/components/LogMigraineForm";
 import MedicalAlertDialog, { checkMedicalAlert, AlertResult } from "@/components/MedicalAlertDialog";
 import OtcRecommendationDialog from "@/components/OtcRecommendationDialog";
-
-type MigraineDay = {
-  date: Date;
-  severity: number;
-  durationMin: number;
-  area: string;
-  medication: string;
-  weather: string;
-  stressLevel: string;
-  caffeinesMg: number;
-  waterMl: number;
-  sleepHours: number;
-  skippedMeals: boolean;
-  notes: string;
-  triggers: string[];
-};
+import { SAMPLE_MIGRAINE_DATA, SampleEntry } from "@/lib/sampleMigraineData";
 
 // Drug class map for same-class detection
 const DRUG_CLASS: Record<string, string> = {
@@ -40,39 +25,9 @@ const DRUG_CLASS: Record<string, string> = {
 };
 
 // Migraine dummy data
-const MIGRAINE_DATA: MigraineDay[] = [
-  { date: new Date(2026, 1, 1),  severity: 7,  durationMin: 165, area: "Right Temporal",    medication: "Sumatriptan",   weather: "Cloudy",       stressLevel: "High",      caffeinesMg: 120, waterMl: 1800, sleepHours: 6.0, skippedMeals: false, notes: "Woke up tired; late coffee",          triggers: ["Poor Sleep", "Caffeine", "Stress"] },
-  { date: new Date(2026, 1, 2),  severity: 9,  durationMin: 135, area: "Left Orbital",      medication: "Ibuprofen",     weather: "Rain",         stressLevel: "Very High", caffeinesMg: 0,   waterMl: 1000, sleepHours: 4.5, skippedMeals: true,  notes: "Skipped breakfast; long screen time", triggers: ["Skipped Meal", "Dehydration", "Poor Sleep", "Screen Time", "Rain/Pressure"] },
-  { date: new Date(2026, 1, 4),  severity: 5,  durationMin: 165, area: "Bifrontal",         medication: "None",          weather: "Overcast",     stressLevel: "Moderate",  caffeinesMg: 80,  waterMl: 1600, sleepHours: 5.0, skippedMeals: false, notes: "Woke early for work; mild stress",    triggers: ["Poor Sleep", "Stress"] },
-  { date: new Date(2026, 1, 5),  severity: 8,  durationMin: 165, area: "Occipital",         medication: "Sumatriptan",   weather: "Storm",        stressLevel: "High",      caffeinesMg: 150, waterMl: 1400, sleepHours: 5.5, skippedMeals: true,  notes: "Loud office; storm outside",          triggers: ["Weather/Storm", "Skipped Meal", "Noise", "Caffeine"] },
-  { date: new Date(2026, 1, 7),  severity: 6,  durationMin: 100, area: "Fronto-Temporal",   medication: "Acetaminophen", weather: "Cloudy",       stressLevel: "Moderate",  caffeinesMg: 90,  waterMl: 1500, sleepHours: 6.5, skippedMeals: false, notes: "Headache after late night coding",    triggers: ["Screen Time", "Stress"] },
-  { date: new Date(2026, 1, 9),  severity: 4,  durationMin: 90,  area: "Vertex",            medication: "None",          weather: "Rain",         stressLevel: "High",      caffeinesMg: 50,  waterMl: 1700, sleepHours: 5.0, skippedMeals: false, notes: "Work deadline; light nausea",         triggers: ["Stress", "Rain/Pressure", "Poor Sleep"] },
-  { date: new Date(2026, 1, 10), severity: 8,  durationMin: 90,  area: "Right Occipital",   medication: "Sumatriptan",   weather: "Storm",        stressLevel: "Very High", caffeinesMg: 200, waterMl: 1400, sleepHours: 4.0, skippedMeals: true,  notes: "Major stress at work; loud environment", triggers: ["Stress", "Weather/Storm", "Skipped Meal", "Caffeine", "Poor Sleep", "Noise"] },
-  { date: new Date(2026, 1, 12), severity: 5,  durationMin: 140, area: "Bifrontal",         medication: "Ibuprofen",     weather: "Overcast",     stressLevel: "Moderate",  caffeinesMg: 80,  waterMl: 1600, sleepHours: 5.5, skippedMeals: false, notes: "Early meeting; mild cramps",          triggers: ["Poor Sleep", "Hormonal/Menstrual"] },
-  { date: new Date(2026, 1, 13), severity: 7,  durationMin: 155, area: "Left Temporal",     medication: "Sumatriptan",   weather: "Rain",         stressLevel: "High",      caffeinesMg: 160, waterMl: 1300, sleepHours: 5.0, skippedMeals: true,  notes: "Skipped lunch; high screen time",     triggers: ["Skipped Meal", "Rain/Pressure", "Screen Time", "Caffeine", "Hormonal/Menstrual"] },
-  { date: new Date(2026, 1, 15), severity: 6,  durationMin: 140, area: "Frontal",           medication: "None",          weather: "Cloudy",       stressLevel: "Moderate",  caffeinesMg: 110, waterMl: 1700, sleepHours: 6.0, skippedMeals: false, notes: "Headache after long meeting",         triggers: ["Stress", "Screen Time"] },
-  { date: new Date(2026, 1, 16), severity: 5,  durationMin: 90,  area: "Temporal Band",     medication: "Acetaminophen", weather: "Clear",        stressLevel: "Moderate",  caffeinesMg: 180, waterMl: 1500, sleepHours: 6.5, skippedMeals: false, notes: "Evening screen time; bright room",    triggers: ["Screen Time", "Bright Light", "Caffeine"] },
-  { date: new Date(2026, 1, 18), severity: 8,  durationMin: 150, area: "Right Periorbital", medication: "Sumatriptan",   weather: "Rain",         stressLevel: "Very High", caffeinesMg: 70,  waterMl: 1500, sleepHours: 4.5, skippedMeals: true,  notes: "Severe stress; skipped breakfast",    triggers: ["Stress", "Skipped Meal", "Rain/Pressure", "Poor Sleep", "Hormonal/Menstrual"] },
-  { date: new Date(2026, 1, 19), severity: 3,  durationMin: 90,  area: "Bifrontal",         medication: "None",          weather: "Overcast",     stressLevel: "Mild",      caffeinesMg: 90,  waterMl: 1800, sleepHours: 7.0, skippedMeals: false, notes: "Mild headache; resolved with rest",   triggers: ["Hormonal/Menstrual"] },
-  { date: new Date(2026, 2, 2),  severity: 6,  durationMin: 51,  area: "Periorbital",       medication: "Frovatriptan",  weather: "Light Rain",   stressLevel: "Mild",      caffeinesMg: 139, waterMl: 2115, sleepHours: 8.6, skippedMeals: false, notes: "Busy day but felt okay",              triggers: ["Hormonal/Menstrual", "Caffeine"] },
-  { date: new Date(2026, 2, 3),  severity: 4,  durationMin: 193, area: "Left Temporal",     medication: "Topiramate",    weather: "Overcast",     stressLevel: "High",      caffeinesMg: 88,  waterMl: 2353, sleepHours: 6.5, skippedMeals: false, notes: "Household chores most of day",        triggers: ["Stress"] },
-  { date: new Date(2026, 2, 4),  severity: 10, durationMin: 219, area: "Frontal",           medication: "Ibuprofen",     weather: "Cloudy",       stressLevel: "Mild",      caffeinesMg: 6,   waterMl: 1505, sleepHours: 8.4, skippedMeals: false, notes: "Slept late; early alarm disrupted",  triggers: ["Disrupted Sleep", "Dehydration"] },
-  { date: new Date(2026, 2, 6),  severity: 3,  durationMin: 81,  area: "Bifrontal",         medication: "Excedrin",      weather: "Snow",         stressLevel: "Moderate",  caffeinesMg: 116, waterMl: 2269, sleepHours: 5.9, skippedMeals: false, notes: "Meetings in bright room",             triggers: ["Bright Light", "Stress"] },
-  { date: new Date(2026, 2, 7),  severity: 7,  durationMin: 135, area: "Right Orbital",     medication: "Naproxen",      weather: "Foggy",        stressLevel: "Very High", caffeinesMg: 249, waterMl: 2473, sleepHours: 4.2, skippedMeals: false, notes: "Long coding session; forgot breaks",  triggers: ["Screen Time", "Caffeine", "Poor Sleep"] },
-  { date: new Date(2026, 2, 8),  severity: 9,  durationMin: 51,  area: "Vertex",            medication: "Ibuprofen",     weather: "Snow",         stressLevel: "Very High", caffeinesMg: 260, waterMl: 1620, sleepHours: 5.9, skippedMeals: false, notes: "Travel day; irregular meals",         triggers: ["Travel", "Caffeine", "Stress", "Weather/Storm"] },
-  { date: new Date(2026, 2, 9),  severity: 8,  durationMin: 173, area: "Left Temporal",     medication: "Naproxen",      weather: "Foggy",        stressLevel: "Moderate",  caffeinesMg: 168, waterMl: 2741, sleepHours: 6.9, skippedMeals: false, notes: "Outdoor walk; low phone use",         triggers: ["Barometric Pressure", "Caffeine"] },
-  { date: new Date(2026, 2, 12), severity: 5,  durationMin: 136, area: "Occipital",         medication: "Sumatriptan",   weather: "Partly Cloudy",stressLevel: "Moderate",  caffeinesMg: 24,  waterMl: 1797, sleepHours: 5.1, skippedMeals: false, notes: "Gym in morning; hydrated well",       triggers: ["Poor Sleep", "Hormonal/Menstrual"] },
-  { date: new Date(2026, 2, 13), severity: 9,  durationMin: 82,  area: "Frontal",           medication: "Rizatriptan",   weather: "Thunderstorm", stressLevel: "Very High", caffeinesMg: 13,  waterMl: 1756, sleepHours: 4.4, skippedMeals: true,  notes: "Argued with colleague; thunderstorm", triggers: ["Stress", "Weather/Storm", "Skipped Meal", "Poor Sleep", "Hormonal/Menstrual"] },
-  { date: new Date(2026, 2, 15), severity: 3,  durationMin: 61,  area: "Right Parietal",    medication: "Acetaminophen", weather: "Light Rain",   stressLevel: "Moderate",  caffeinesMg: 177, waterMl: 2054, sleepHours: 4.6, skippedMeals: true,  notes: "Travel day; irregular meals",         triggers: ["Travel", "Skipped Meal", "Poor Sleep", "Hormonal/Menstrual"] },
-  { date: new Date(2026, 2, 17), severity: 5,  durationMin: 49,  area: "Right Temporal",    medication: "Topiramate",    weather: "Light Rain",   stressLevel: "Mild",      caffeinesMg: 201, waterMl: 1967, sleepHours: 7.3, skippedMeals: false, notes: "Busy day but felt okay",              triggers: ["Caffeine", "Rain/Pressure"] },
-  { date: new Date(2026, 2, 18), severity: 9,  durationMin: 129, area: "Bilateral Temporal",medication: "Zolmitriptan",  weather: "Storm",        stressLevel: "Very High", caffeinesMg: 235, waterMl: 2669, sleepHours: 7.6, skippedMeals: true,  notes: "Travel day; irregular meals",         triggers: ["Weather/Storm", "Travel", "Skipped Meal", "Caffeine", "Stress"] },
-  { date: new Date(2026, 2, 20), severity: 6,  durationMin: 151, area: "Periorbital",       medication: "Rizatriptan",   weather: "Snow",         stressLevel: "Moderate",  caffeinesMg: 225, waterMl: 2274, sleepHours: 8.1, skippedMeals: true,  notes: "Travel day; irregular meals",         triggers: ["Travel", "Skipped Meal", "Caffeine"] },
-  { date: new Date(2026, 2, 21), severity: 7,  durationMin: 149, area: "Right Orbital",     medication: "Ibuprofen",     weather: "Clear",        stressLevel: "High",      caffeinesMg: 94,  waterMl: 1710, sleepHours: 7.3, skippedMeals: true,  notes: "Lots of meetings in bright room",     triggers: ["Bright Light", "Skipped Meal", "Hormonal/Menstrual"] },
-  { date: new Date(2026, 2, 23), severity: 7,  durationMin: 193, area: "Left Orbital",      medication: "Ibuprofen",     weather: "Cloudy",       stressLevel: "Moderate",  caffeinesMg: 160, waterMl: 1641, sleepHours: 6.0, skippedMeals: false, notes: "Long coding session; forgot breaks",  triggers: ["Screen Time", "Caffeine", "Hormonal/Menstrual"] },
-  { date: new Date(2026, 2, 24), severity: 8,  durationMin: 66,  area: "Occipital",         medication: "Rizatriptan",   weather: "Light Rain",   stressLevel: "Very High", caffeinesMg: 224, waterMl: 1453, sleepHours: 4.4, skippedMeals: false, notes: "Travel day; irregular meals",         triggers: ["Travel", "Caffeine", "Poor Sleep", "Rain/Pressure"] },
-  { date: new Date(2026, 2, 26), severity: 10, durationMin: 213, area: "Periorbital",       medication: "Eletriptan",    weather: "Cloudy",       stressLevel: "Very High", caffeinesMg: 151, waterMl: 2467, sleepHours: 6.7, skippedMeals: false, notes: "Travel day; irregular meals",         triggers: ["Travel", "Stress", "Caffeine"] },
-  { date: new Date(2026, 2, 27), severity: 3,  durationMin: 48,  area: "Left Temporal",     medication: "Naproxen",      weather: "Light Rain",   stressLevel: "High",      caffeinesMg: 243, waterMl: 2064, sleepHours: 5.1, skippedMeals: true,  notes: "Long coding session; forgot breaks",  triggers: ["Caffeine", "Skipped Meal", "Poor Sleep", "Screen Time"] },
-];
+const MIGRAINE_DATA = SAMPLE_MIGRAINE_DATA;
+
+
 
 function minToHm(min: number): string {
   const h = Math.floor(min / 60);
@@ -101,9 +56,8 @@ function severityTextColor(s: number) {
 }
 
 /** Get medication string(s) from either entry type */
-function getMedStrings(m: MigraineDay | UserEntry): string[] {
-  if ("medication" in m) return m.medication !== "None" ? [m.medication] : [];
-  return m.meds;
+function getMedStrings(m: SampleEntry | UserEntry): string[] {
+  return m.meds ?? [];
 }
 
 export default function MigraineCalendar() {
@@ -124,9 +78,10 @@ export default function MigraineCalendar() {
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
   const startDayOfWeek = getDay(monthStart);
 
-  const getMigraineForDay = (day: Date): MigraineDay | UserEntry | undefined => {
-    const sampleEntry = MIGRAINE_DATA.find((m) => isSameDay(m.date, day));
-    if (sampleEntry && deletedSampleDates.has(format(day, "yyyy-MM-dd"))) return userEntries.find((e) => e.date === format(day, "MMM d"));
+  const getMigraineForDay = (day: Date): SampleEntry | UserEntry | undefined => {
+    const iso = format(day, "yyyy-MM-dd");
+    const sampleEntry = MIGRAINE_DATA.find((m) => m.isoDate === iso);
+    if (sampleEntry && deletedSampleDates.has(iso)) return userEntries.find((e) => e.date === format(day, "MMM d"));
     return sampleEntry ?? userEntries.find((e) => e.date === format(day, "MMM d"));
   };
 
@@ -154,16 +109,18 @@ export default function MigraineCalendar() {
     return null;
   };
 
-  const deleteEntry = (entry: MigraineDay | UserEntry) => {
+  const deleteEntry = (entry: SampleEntry | UserEntry) => {
     if (isUserEntryFn(entry)) {
       setUserEntries((prev) => prev.filter((e) => e.id !== entry.id));
     } else {
-      setDeletedSampleDates((prev) => new Set(prev).add(format(entry.date, "yyyy-MM-dd")));
+      setDeletedSampleDates((prev) => new Set(prev).add(entry.isoDate));
     }
     setSelectedDay(null);
   };
 
-  const monthMigraines = MIGRAINE_DATA.filter((m) => m.date >= monthStart && m.date <= monthEnd);
+  const monthIsoStart = format(monthStart, "yyyy-MM-dd");
+  const monthIsoEnd = format(monthEnd, "yyyy-MM-dd");
+  const monthMigraines = MIGRAINE_DATA.filter((m) => m.isoDate >= monthIsoStart && m.isoDate <= monthIsoEnd);
   const avgSeverity = monthMigraines.length
     ? (monthMigraines.reduce((a, m) => a + m.severity, 0) / monthMigraines.length).toFixed(1)
     : "—";
@@ -171,16 +128,16 @@ export default function MigraineCalendar() {
   const selectedMigraine = selectedDay ? getMigraineForDay(selectedDay) : undefined;
   const selectedWarning = selectedDay ? hasSameClassWarning(selectedDay) : null;
 
-  const getWater = (m: MigraineDay | UserEntry) => "waterMl" in m ? `${(m.waterMl / 1000).toFixed(1)}L` : m.water > 0 ? `${m.water} gl` : "—";
-  const getStress = (m: MigraineDay | UserEntry) => "stressLevel" in m ? m.stressLevel : m.stress;
-  const getSleep = (m: MigraineDay | UserEntry) => "sleepHours" in m ? m.sleepHours : m.sleep;
-  const getCaffeine = (m: MigraineDay | UserEntry) => "caffeinesMg" in m ? `${m.caffeinesMg}mg` : `${m.caffeine}mg`;
-  const getSkipped = (m: MigraineDay | UserEntry) => "skippedMeals" in m ? m.skippedMeals : m.skippedMeal;
-  const getMeds = (m: MigraineDay | UserEntry) => {
+  const getWater = (m: SampleEntry | UserEntry) => m.water > 0 ? `${m.water} gl` : "—";
+  const getStress = (m: SampleEntry | UserEntry) => m.stress;
+  const getSleep = (m: SampleEntry | UserEntry) => m.sleep;
+  const getCaffeine = (m: SampleEntry | UserEntry) => `${m.caffeine}mg`;
+  const getSkipped = (m: SampleEntry | UserEntry) => m.skippedMeal;
+  const getMeds = (m: SampleEntry | UserEntry) => {
     const meds = getMedStrings(m);
     return meds.length > 0 ? meds.join(", ") : null;
   };
-  const isUserEntryFn = (m: MigraineDay | UserEntry): m is UserEntry => "isUserEntry" in m;
+  const isUserEntryFn = (m: SampleEntry | UserEntry): m is UserEntry => "isUserEntry" in m;
 
   const quickAdd = (day: Date, severity: number) => {
     const dateLabel = format(day, "MMM d");

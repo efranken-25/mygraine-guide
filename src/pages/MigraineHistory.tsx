@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -6,17 +5,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Brain, Clock, Zap, TrendingUp, TrendingDown, Calendar, Pill, ArrowRight, Droplets, Wind, AlertTriangle, FileText } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import ClinicalReport from "@/components/ClinicalReport";
+import { SAMPLE_MIGRAINE_DATA } from "@/lib/sampleMigraineData";
 
-const MOCK_ENTRIES = [
-  { id: 1, date: "Mar 26", severity: 10, durationMin: 213, area: "Periorbital", symptoms: ["Severe Head Pain", "Nausea", "Light Sensitivity"], triggers: ["Travel", "Stress", "Caffeine"], meds: ["Eletriptan"], weather: "Cloudy", sleep: 6.7, caffeine: 151, stress: "Very High", skippedMeal: false, notes: "Travel day; irregular meals", hormonalStatus: ["Menstruating"] },
-  { id: 2, date: "Mar 24", severity: 8, durationMin: 66, area: "Occipital", symptoms: ["Throbbing Pain", "Neck Tension", "Nausea"], triggers: ["Caffeine", "Poor Sleep", "Rain/Pressure"], meds: ["Rizatriptan"], weather: "Light Rain", sleep: 4.4, caffeine: 224, stress: "Very High", skippedMeal: false, notes: "Travel day; irregular meals" },
-  { id: 3, date: "Mar 21", severity: 7, durationMin: 149, area: "Right Orbital", symptoms: ["Eye Pain", "Light Sensitivity", "Throbbing"], triggers: ["Bright Light", "Skipped Meal", "Hormonal/Menstrual"], meds: ["Ibuprofen"], weather: "Clear", sleep: 7.3, caffeine: 94, stress: "High", skippedMeal: true, notes: "Lots of meetings in bright room", hormonalStatus: ["Menstruating", "Luteal"] },
-  { id: 4, date: "Mar 18", severity: 9, durationMin: 129, area: "Bilateral Temporal", symptoms: ["Severe Head Pain", "Vomiting", "Sound Sensitivity", "Aura"], triggers: ["Weather/Storm", "Travel", "Skipped Meal", "Caffeine"], meds: ["Zolmitriptan"], weather: "Storm", sleep: 7.6, caffeine: 235, stress: "Very High", skippedMeal: true, notes: "Travel day; irregular meals" },
-  { id: 5, date: "Mar 13", severity: 9, durationMin: 82, area: "Frontal", symptoms: ["Severe Head Pain", "Nausea", "Aura", "Brain Fog"], triggers: ["Stress", "Weather/Storm", "Skipped Meal", "Poor Sleep"], meds: ["Sumatriptan"], weather: "Thunderstorm", sleep: 4.4, caffeine: 13, stress: "Very High", skippedMeal: true, notes: "Argued with colleague; thunderstorm" },
-  { id: 6, date: "Mar 9", severity: 8, durationMin: 173, area: "Left Temporal", symptoms: ["Throbbing Pain", "Neck Tension", "Fatigue"], triggers: ["Barometric Pressure", "Caffeine"], meds: ["Naproxen"], weather: "Foggy", sleep: 6.9, caffeine: 168, stress: "Moderate", skippedMeal: false, notes: "Outdoor walk; low phone use" },
-  { id: 7, date: "Mar 8", severity: 9, durationMin: 51, area: "Vertex", symptoms: ["Severe Head Pain", "Nausea", "Dizziness"], triggers: ["Travel", "Caffeine", "Stress", "Weather/Storm"], meds: ["Ibuprofen"], weather: "Snow", sleep: 5.9, caffeine: 260, stress: "Very High", skippedMeal: false, notes: "Travel day; irregular meals" },
-  { id: 8, date: "Mar 7", severity: 7, durationMin: 135, area: "Right Orbital", symptoms: ["Eye Pain", "Screen Fatigue", "Neck Tension", "Brain Fog"], triggers: ["Screen Time", "Caffeine", "Poor Sleep"], meds: ["Naproxen"], weather: "Foggy", sleep: 4.2, caffeine: 249, stress: "Very High", skippedMeal: false, notes: "Long coding session; forgot breaks" },
-];
+// Use the most recent 8 March entries for history display (sorted newest first)
+const MOCK_ENTRIES = SAMPLE_MIGRAINE_DATA
+  .filter((e) => e.isoDate.startsWith("2026-03"))
+  .sort((a, b) => b.isoDate.localeCompare(a.isoDate))
+  .slice(0, 8);
 
 const MED_EFFECTIVENESS = [
   { name: "Topiramate", dosage: "50mg", status: "active", period: "8 weeks", avgSeverityBefore: 7.8, avgSeverityDuring: 6.4, frequencyBefore: 8, frequencyDuring: 5, verdict: "moderate" },
