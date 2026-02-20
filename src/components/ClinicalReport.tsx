@@ -20,7 +20,6 @@ import { format, isWithinInterval, parseISO, startOfDay, endOfDay } from "date-f
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
 
 interface MedEffectiveness {
   helped: "yes" | "partial" | "no" | null;
@@ -76,18 +75,8 @@ const SECTION_COLORS = [
 
 // ─── PDF generation ──────────────────────────────────────────────────────────
 
-async function captureSectionAsPNG(el: HTMLElement): Promise<string> {
-  const canvas = await html2canvas(el, {
-    scale: 2,
-    useCORS: true,
-    backgroundColor: "#ffffff",
-    logging: false,
-  });
-  return canvas.toDataURL("image/png");
-}
-
 async function exportClinicalPDF(
-  reportRef: React.RefObject<HTMLDivElement>,
+  _chartsRef: React.RefObject<HTMLDivElement>,
   patientNotes: string,
   dateFrom: Date,
   dateTo: Date,
@@ -95,335 +84,756 @@ async function exportClinicalPDF(
   stats: ReturnType<typeof computeStats>,
   aiReport: AIReport | null
 ) {
-  if (!reportRef.current) return;
-
   const A4_W = 210;
   const A4_H = 297;
-  const MARGIN = 14;
-  const CONTENT_W = A4_W - MARGIN * 2;
-  const GAP = 5;
+  const M = 14; // margin
+  const CW = A4_W - M * 2; // content width
+  const LH = 5.2; // line height
+  const SECTION_GAP = 7;
 
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-  let y = MARGIN;
+  let y = M;
 
-  // ── Helper: add image section ─────────────────────────────────────────────
-  const addSection = async (el: HTMLElement) => {
-    const imgData = await captureSectionAsPNG(el);
-    const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: "#ffffff", logging: false });
-    const imgH = (canvas.height / canvas.width) * CONTENT_W;
-    if (y + imgH > A4_H - MARGIN) {
-      pdf.addPage();
-      y = MARGIN;
-    }
-    pdf.addImage(imgData, "PNG", MARGIN, y, CONTENT_W, imgH);
-    y += imgH + GAP;
+  // ── COLOUR PALETTE (grayscale only, colour only for severity) ─────────────
+  const C = {
+    black: [15, 15, 15] as [number,number,number],
+    dark:  [45, 45, 45] as [number,number,number],
+    mid:   [90, 90, 90] as [number,number,number],
+    muted: [140, 140, 140] as [number,number,number],
+    light: [210, 210, 210] as [number,number,number],
+    rule:  [195, 195, 195] as [number,number,number],
+    bg1:   [248, 248, 248] as [number,number,number],
+    bg2:   [240, 240, 240] as [number,number,number],
+    headerBg: [30, 30, 30] as [number,number,number],
+    // severity colours — only colour used
+    sevHigh: [200, 50, 50] as [number,number,number],
+    sevMid:  [180, 110, 20] as [number,number,number],
+    sevLow:  [50, 140, 80] as [number,number,number],
   };
 
-  // ── Helper: text block ────────────────────────────────────────────────────
-  const addTextSection = (
-    title: string,
-    body: string | string[],
-    opts: { color?: [number, number, number]; numbered?: boolean } = {}
-  ) => {
-    const titleH = 7;
-    const lineH = 5.5;
-    const lines = Array.isArray(body) ? body : [body];
-    const totalH = titleH + lines.length * lineH + GAP;
-    if (y + totalH > A4_H - MARGIN) { pdf.addPage(); y = MARGIN; }
+  const setFill = (c: [number,number,number]) => pdf.setFillColor(c[0], c[1], c[2]);
+  const setDraw = (c: [number,number,number]) => pdf.setDrawColor(c[0], c[1], c[2]);
+  const setTxt  = (c: [number,number,number]) => pdf.setTextColor(c[0], c[1], c[2]);
+  const sevColor = (s: number) => s >= 7 ? C.sevHigh : s >= 4 ? C.sevMid : C.sevLow;
 
-    // Section title
+  // ── HELPERS ───────────────────────────────────────────────────────────────
+
+  const rule = (thick = false) => {
+    setDraw(thick ? C.dark : C.rule);
+    pdf.setLineWidth(thick ? 0.4 : 0.2);
+    pdf.line(M, y, A4_W - M, y);
+    y += 3;
+  };
+
+  const newPageIfNeeded = (needed: number) => {
+    if (y + needed > A4_H - M - 8) { pdf.addPage(); y = M; }
+  };
+
+  const sectionHeading = (title: string) => {
+    newPageIfNeeded(12);
+    y += 2;
+    setFill(C.black);
+    pdf.rect(M, y, CW, 7, "F");
     pdf.setFontSize(8);
     pdf.setFont("helvetica", "bold");
-    const [r, g, b] = opts.color ?? [100, 100, 110];
-    pdf.setTextColor(r, g, b);
-    pdf.text(title.toUpperCase(), MARGIN, y);
-    y += titleH;
-
-    // Body
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(9.5);
-    pdf.setTextColor(30, 30, 40);
-    lines.forEach((line, i) => {
-      const prefix = opts.numbered ? `${i + 1}.  ` : "•  ";
-      const wrapped = pdf.splitTextToSize(
-        Array.isArray(body) ? `${prefix}${line}` : line,
-        CONTENT_W - 2
-      );
-      wrapped.forEach((l: string) => {
-        if (y + lineH > A4_H - MARGIN) { pdf.addPage(); y = MARGIN; }
-        pdf.text(l, MARGIN + (Array.isArray(body) ? 3 : 0), y);
-        y += lineH;
-      });
-    });
-    y += GAP;
+    setTxt([255, 255, 255]);
+    pdf.text(title.toUpperCase(), M + 3, y + 5);
+    y += 9;
   };
 
-  // ── COVER / HEADER ────────────────────────────────────────────────────────
-  pdf.setFillColor(245, 243, 255);
-  pdf.rect(0, 0, A4_W, 38, "F");
+  const tableHeader = (cols: { label: string; x: number; w: number }[]) => {
+    setFill(C.bg2);
+    setDraw(C.light);
+    pdf.rect(M, y, CW, 6, "FD");
+    pdf.setFontSize(7.5);
+    pdf.setFont("helvetica", "bold");
+    setTxt(C.mid);
+    cols.forEach(col => pdf.text(col.label, M + col.x + 1, y + 4.2));
+    y += 6;
+  };
 
-  pdf.setFontSize(18);
+  const tableRow = (
+    cols: { text: string; x: number; w: number; bold?: boolean; color?: [number,number,number] }[],
+    rowIdx: number,
+    rowH = 6.5
+  ) => {
+    newPageIfNeeded(rowH);
+    setFill(rowIdx % 2 === 0 ? C.bg1 : [255, 255, 255]);
+    setDraw(C.light);
+    pdf.rect(M, y, CW, rowH, "FD");
+    cols.forEach(col => {
+      pdf.setFontSize(7.8);
+      pdf.setFont("helvetica", col.bold ? "bold" : "normal");
+      setTxt(col.color ?? C.dark);
+      const text = pdf.splitTextToSize(col.text, col.w - 2);
+      pdf.text(text[0] ?? "", M + col.x + 1, y + 4.3);
+    });
+    y += rowH;
+  };
+
+  const bodyText = (text: string, indent = 0) => {
+    pdf.setFontSize(9);
+    pdf.setFont("helvetica", "normal");
+    setTxt(C.dark);
+    const wrapped = pdf.splitTextToSize(text, CW - indent - 2);
+    wrapped.forEach((line: string) => {
+      newPageIfNeeded(LH + 1);
+      pdf.text(line, M + indent, y);
+      y += LH;
+    });
+  };
+
+  const bulletList = (items: string[], numbered = false) => {
+    items.forEach((item, i) => {
+      newPageIfNeeded(LH + 1);
+      const prefix = numbered ? `${i + 1}.` : "–";
+      pdf.setFontSize(8.5);
+      pdf.setFont("helvetica", numbered ? "bold" : "normal");
+      setTxt(C.mid);
+      pdf.text(prefix, M + 2, y);
+      pdf.setFont("helvetica", "normal");
+      setTxt(C.dark);
+      const wrapped = pdf.splitTextToSize(item, CW - 10);
+      wrapped.forEach((line: string, li: number) => {
+        if (li > 0) { newPageIfNeeded(LH); }
+        pdf.text(line, M + 8, y);
+        y += LH;
+      });
+      y += 0.5;
+    });
+  };
+
+  // ASCII bar (0–maxVal mapped to barWidth chars)
+  const asciiBar = (val: number, maxVal: number, maxW = 40): string => {
+    const filled = Math.round((val / maxVal) * maxW);
+    return "█".repeat(filled) + "░".repeat(maxW - filled);
+  };
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // PAGE 1 — COVER HEADER
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // Header banner
+  setFill(C.headerBg);
+  pdf.rect(0, 0, A4_W, 42, "F");
+
+  pdf.setFontSize(22);
   pdf.setFont("helvetica", "bold");
-  pdf.setTextColor(60, 40, 100);
-  pdf.text("Migraine Clinical Report", MARGIN, 16);
+  setTxt([255, 255, 255]);
+  pdf.text("MIGRAINE CLINICAL REPORT", M, 16);
 
   pdf.setFontSize(9);
   pdf.setFont("helvetica", "normal");
-  pdf.setTextColor(100, 90, 130);
-  pdf.text(`Period: ${format(dateFrom, "MMM d, yyyy")} – ${format(dateTo, "MMM d, yyyy")}`, MARGIN, 24);
-  pdf.text(`Generated: ${format(new Date(), "PPP 'at' p")}`, MARGIN, 30);
-  pdf.text(`Episodes analyzed: ${filteredEntries.length}`, MARGIN + 100, 24);
+  setTxt([200, 200, 200]);
+  pdf.text(`Report period:  ${format(dateFrom, "MMMM d, yyyy")} – ${format(dateTo, "MMMM d, yyyy")}`, M, 24);
+  pdf.text(`Generated:  ${format(new Date(), "MMMM d, yyyy 'at' h:mm a")}`, M, 30);
+  pdf.text(`Total episodes in period:  ${filteredEntries.length}`, M, 36);
 
-  pdf.setFontSize(7.5);
-  pdf.setTextColor(150, 140, 170);
-  pdf.text("AI-assisted clinical summary · Not a substitute for professional medical judgment", MARGIN, 36);
+  setTxt([120, 120, 120]);
+  pdf.setFontSize(7);
+  pdf.text("AI-assisted analysis · Not a substitute for professional medical judgment · Confidential patient document", M, 41);
 
-  y = 46;
+  y = 50;
 
-  // ── HORIZONTAL RULE ───────────────────────────────────────────────────────
-  pdf.setDrawColor(220, 215, 240);
-  pdf.line(MARGIN, y, A4_W - MARGIN, y);
-  y += 6;
+  // ══════════════════════════════════════════════════════════════════════════
+  // SECTION 1 — SUMMARY STATISTICS
+  // ══════════════════════════════════════════════════════════════════════════
 
-  // ── SUMMARY KPIs ─────────────────────────────────────────────────────────
-  if (stats) {
-    pdf.setFontSize(8);
-    pdf.setFont("helvetica", "bold");
-    pdf.setTextColor(100, 100, 110);
-    pdf.text("SUMMARY STATISTICS", MARGIN, y);
-    y += 6;
+  if (stats && filteredEntries.length > 0) {
+    sectionHeading("1. Summary Statistics");
 
-    const kpis = [
-      { label: "Total Episodes", value: String(filteredEntries.length) },
-      { label: "Avg Severity (0–10)", value: stats.avgSev.toFixed(1) },
-      { label: "Avg Duration", value: minToHm(Math.round(stats.avgDur)) },
-      { label: "Severe Episodes (≥7)", value: String(filteredEntries.filter(e => e.severity >= 7).length) },
-      { label: "Skipped Meals", value: String(filteredEntries.filter(e => e.skippedMeal).length) + " episodes" },
-      { label: "Unique Triggers", value: String(new Set(filteredEntries.flatMap(e => e.triggers)).size) },
+    const severeCount  = filteredEntries.filter(e => e.severity >= 7).length;
+    const modCount     = filteredEntries.filter(e => e.severity >= 4 && e.severity < 7).length;
+    const mildCount    = filteredEntries.filter(e => e.severity < 4).length;
+    const skippedMeals = filteredEntries.filter(e => e.skippedMeal).length;
+    const withHormonal = filteredEntries.filter(e => e.hormonalStatus?.length).length;
+    const maxDur       = Math.max(...filteredEntries.map(e => e.durationMin));
+    const minDur       = Math.min(...filteredEntries.map(e => e.durationMin));
+
+    const kpiRows = [
+      ["Total episodes", String(filteredEntries.length), "Average severity", stats.avgSev.toFixed(1) + " / 10"],
+      ["Average duration", minToHm(Math.round(stats.avgDur)), "Longest episode", minToHm(maxDur)],
+      ["Shortest episode", minToHm(minDur), "Severe (≥ 7/10)", `${severeCount}  (${Math.round((severeCount/filteredEntries.length)*100)}%)`],
+      ["Moderate (4–6)", `${modCount}  (${Math.round((modCount/filteredEntries.length)*100)}%)`, "Mild (< 4)", `${mildCount}  (${Math.round((mildCount/filteredEntries.length)*100)}%)`],
+      ["Skipped meals logged", String(skippedMeals), "With hormonal status", String(withHormonal)],
+      ["Unique triggers logged", String(new Set(filteredEntries.flatMap(e => e.triggers)).size), "Unique symptoms logged", String(new Set(filteredEntries.flatMap(e => e.symptoms)).size)],
     ];
 
-    const colW = CONTENT_W / 3;
-    const rowH = 13;
-    const boxPad = 3;
+    const kpiColW = CW / 2;
+    kpiRows.forEach((row, ri) => {
+      newPageIfNeeded(7);
+      setFill(ri % 2 === 0 ? C.bg1 : [255,255,255]);
+      setDraw(C.light);
+      pdf.rect(M, y, CW, 6.5, "FD");
 
-    kpis.forEach((kpi, i) => {
-      const col = i % 3;
-      const row = Math.floor(i / 3);
-      const bx = MARGIN + col * colW;
-      const by = y + row * rowH;
-
-      pdf.setFillColor(249, 248, 255);
-      pdf.setDrawColor(230, 225, 245);
-      pdf.roundedRect(bx, by, colW - 2, rowH - 2, 2, 2, "FD");
-
-      pdf.setFontSize(13);
-      pdf.setFont("helvetica", "bold");
-      pdf.setTextColor(60, 40, 100);
-      pdf.text(kpi.value, bx + boxPad, by + 7.5);
-
-      pdf.setFontSize(7);
-      pdf.setFont("helvetica", "normal");
-      pdf.setTextColor(120, 110, 140);
-      pdf.text(kpi.label, bx + boxPad, by + 11);
-    });
-
-    y += Math.ceil(kpis.length / 3) * rowH + 8;
-  }
-
-  // ── CHART SECTIONS ────────────────────────────────────────────────────────
-  const sections = reportRef.current.querySelectorAll<HTMLElement>("[data-pdf-section]");
-  for (const section of Array.from(sections)) {
-    await addSection(section);
-  }
-
-  // ── TOP TRIGGERS TABLE ────────────────────────────────────────────────────
-  if (stats && stats.topTriggers.length > 0) {
-    if (y + 8 + stats.topTriggers.length * 7 > A4_H - MARGIN) { pdf.addPage(); y = MARGIN; }
-
-    pdf.setFontSize(8);
-    pdf.setFont("helvetica", "bold");
-    pdf.setTextColor(100, 100, 110);
-    pdf.text("TOP TRIGGERS", MARGIN, y);
-    y += 5;
-
-    // Table header
-    pdf.setFillColor(240, 238, 252);
-    pdf.rect(MARGIN, y, CONTENT_W, 6, "F");
-    pdf.setFontSize(7.5);
-    pdf.setFont("helvetica", "bold");
-    pdf.setTextColor(80, 60, 120);
-    pdf.text("Trigger", MARGIN + 2, y + 4);
-    pdf.text("Episodes", MARGIN + 90, y + 4);
-    pdf.text("% of Period", MARGIN + 130, y + 4);
-    pdf.text("Avg Severity", MARGIN + 160, y + 4);
-    y += 6;
-
-    stats.topTriggers.forEach(([trigger, count], i) => {
-      const bgAlpha = i % 2 === 0 ? 250 : 244;
-      pdf.setFillColor(bgAlpha, bgAlpha, bgAlpha);
-      pdf.rect(MARGIN, y, CONTENT_W, 6.5, "F");
-
-      const relevantEntries = filteredEntries.filter(e => e.triggers.includes(trigger));
-      const avgSev = relevantEntries.length
-        ? (relevantEntries.reduce((a, e) => a + e.severity, 0) / relevantEntries.length).toFixed(1)
-        : "—";
-
-      pdf.setFontSize(8);
-      pdf.setFont("helvetica", "normal");
-      pdf.setTextColor(30, 30, 40);
-      pdf.text(trigger, MARGIN + 2, y + 4.5);
-      pdf.text(String(count), MARGIN + 90, y + 4.5);
-      pdf.text(`${Math.round((count / filteredEntries.length) * 100)}%`, MARGIN + 130, y + 4.5);
-      pdf.text(String(avgSev), MARGIN + 160, y + 4.5);
+      [0, 1].forEach(ci => {
+        const label = row[ci * 2];
+        const value = row[ci * 2 + 1];
+        const bx = M + ci * kpiColW;
+        pdf.setFontSize(7.5);
+        pdf.setFont("helvetica", "normal");
+        setTxt(C.mid);
+        pdf.text(label, bx + 2, y + 3);
+        pdf.setFontSize(9);
+        pdf.setFont("helvetica", "bold");
+        setTxt(C.black);
+        pdf.text(value, bx + 2, y + 6);
+      });
       y += 6.5;
     });
-    y += 8;
-  }
 
-  // ── EPISODE TIMELINE TABLE ────────────────────────────────────────────────
-  if (y + 60 > A4_H - MARGIN) { pdf.addPage(); y = MARGIN; }
+    y += SECTION_GAP;
 
-  pdf.setFontSize(8);
-  pdf.setFont("helvetica", "bold");
-  pdf.setTextColor(100, 100, 110);
-  pdf.text("EPISODE TIMELINE", MARGIN, y);
-  y += 5;
+    // ── Severity trend (ASCII sparkline) ─────────────────────────────────────
+    sectionHeading("2. Severity Trend");
 
-  // Table header
-  pdf.setFillColor(240, 238, 252);
-  pdf.rect(MARGIN, y, CONTENT_W, 6, "F");
-  pdf.setFontSize(7.5);
-  pdf.setFont("helvetica", "bold");
-  pdf.setTextColor(80, 60, 120);
-  ["Date", "Area", "Sev", "Duration", "Triggers", "Medications", "Hormonal"].forEach((h, i) => {
-    const xs = [0, 22, 58, 66, 84, 124, 156];
-    pdf.text(h, MARGIN + xs[i], y + 4);
-  });
-  y += 6;
-
-  filteredEntries.slice().reverse().forEach((entry, i) => {
-    const rowH = 7;
-    if (y + rowH > A4_H - MARGIN) { pdf.addPage(); y = MARGIN; }
-
-    const bg = i % 2 === 0 ? 250 : 244;
-    pdf.setFillColor(bg, bg, bg);
-    pdf.rect(MARGIN, y, CONTENT_W, rowH, "F");
-
-    // Severity color dot
-    const sev = entry.severity;
-    if (sev >= 7) pdf.setFillColor(220, 60, 60);
-    else if (sev >= 4) pdf.setFillColor(230, 150, 30);
-    else pdf.setFillColor(60, 160, 100);
-    pdf.circle(MARGIN + 61 + 2, y + 3.5, 1.5, "F");
+    const chronological = filteredEntries.slice().reverse();
 
     pdf.setFontSize(7.5);
+    pdf.setFont("helvetica", "bold");
+    setTxt(C.mid);
+    pdf.text("Date", M + 1, y + 4);
+    pdf.text("Sev", M + 24, y + 4);
+    pdf.text("Bar (1–10)", M + 34, y + 4);
+    pdf.text("Duration", M + 134, y + 4);
+    pdf.text("Trend", M + 160, y + 4);
+    setFill(C.bg2);
+    pdf.rect(M, y, CW, 6, "F");
+    y += 6;
+
+    let prevSev: number | null = null;
+    chronological.forEach((entry, i) => {
+      newPageIfNeeded(6.5);
+      const sev = entry.severity;
+      const sc = sevColor(sev);
+
+      setFill(i % 2 === 0 ? C.bg1 : [255,255,255]);
+      setDraw(C.light);
+      pdf.rect(M, y, CW, 6.5, "FD");
+
+      pdf.setFontSize(7.5);
+      pdf.setFont("helvetica", "normal");
+      setTxt(C.dark);
+      pdf.text(entry.date, M + 1, y + 4.3);
+
+      // Severity number in colour
+      pdf.setFont("helvetica", "bold");
+      setTxt(sc);
+      pdf.text(String(sev), M + 24, y + 4.3);
+
+      // ASCII bar
+      pdf.setFont("courier", "normal");
+      pdf.setFontSize(5.5);
+      setTxt(sc);
+      pdf.text(asciiBar(sev, 10, 36), M + 34, y + 4.3);
+
+      // Duration
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(7.5);
+      setTxt(C.dark);
+      pdf.text(minToHm(entry.durationMin), M + 134, y + 4.3);
+
+      // Trend arrow vs previous
+      if (prevSev !== null) {
+        const delta = sev - prevSev;
+        const arrow = delta > 0 ? "▲ +" + delta : delta < 0 ? "▼ " + delta : "= 0";
+        const ac = delta > 0 ? C.sevHigh : delta < 0 ? C.sevLow : C.mid;
+        pdf.setFont("helvetica", "bold");
+        setTxt(ac);
+        pdf.text(arrow, M + 160, y + 4.3);
+      }
+      prevSev = sev;
+      y += 6.5;
+    });
+
+    y += SECTION_GAP;
+
+    // ══════════════════════════════════════════════════════════════════════
+    // SECTION 3 — COMPREHENSIVE SYMPTOM LOG
+    // ══════════════════════════════════════════════════════════════════════
+
+    sectionHeading("3. Comprehensive Symptom Log");
+
+    // Build symptom frequency map
+    const symMap: Record<string, { count: number; totalSev: number }> = {};
+    filteredEntries.forEach(e => {
+      e.symptoms.forEach(s => {
+        if (!symMap[s]) symMap[s] = { count: 0, totalSev: 0 };
+        symMap[s].count++;
+        symMap[s].totalSev += e.severity;
+      });
+    });
+    const symRanked = Object.entries(symMap)
+      .map(([sym, d]) => ({ sym, count: d.count, avgSev: d.totalSev / d.count }))
+      .sort((a, b) => b.count - a.count);
+
+    const maxSymCount = symRanked[0]?.count ?? 1;
+
+    tableHeader([
+      { label: "Symptom", x: 0, w: 64 },
+      { label: "Episodes", x: 64, w: 24 },
+      { label: "Prevalence", x: 88, w: 22 },
+      { label: "Frequency bar", x: 110, w: 48 },
+      { label: "Avg severity", x: 158, w: 24 },
+    ]);
+
+    symRanked.forEach((row, i) => {
+      newPageIfNeeded(6.5);
+      const pct = Math.round((row.count / filteredEntries.length) * 100);
+      setFill(i % 2 === 0 ? C.bg1 : [255,255,255]);
+      setDraw(C.light);
+      pdf.rect(M, y, CW, 6.5, "FD");
+
+      pdf.setFontSize(7.8);
+      pdf.setFont("helvetica", "normal");
+      setTxt(C.dark);
+      pdf.text(row.sym, M + 1, y + 4.3);
+      pdf.text(String(row.count), M + 65, y + 4.3);
+      pdf.text(`${pct}%`, M + 89, y + 4.3);
+
+      // Frequency bar
+      pdf.setFont("courier", "normal");
+      pdf.setFontSize(5.5);
+      setTxt(C.mid);
+      pdf.text(asciiBar(row.count, maxSymCount, 22), M + 111, y + 4.3);
+
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(7.8);
+      setTxt(sevColor(Math.round(row.avgSev)));
+      pdf.text(row.avgSev.toFixed(1), M + 159, y + 4.3);
+
+      y += 6.5;
+    });
+
+    y += SECTION_GAP;
+
+    // ══════════════════════════════════════════════════════════════════════
+    // SECTION 4 — TRIGGER ANALYSIS
+    // ══════════════════════════════════════════════════════════════════════
+
+    sectionHeading("4. Trigger Analysis & Correlations");
+
+    const allTriggers = Object.entries(
+      filteredEntries.flatMap(e => e.triggers).reduce((acc, t) => {
+        acc[t] = (acc[t] ?? 0) + 1; return acc;
+      }, {} as Record<string, number>)
+    ).sort((a, b) => b[1] - a[1]);
+
+    const maxTrigCount = allTriggers[0]?.[1] ?? 1;
+
+    tableHeader([
+      { label: "Trigger", x: 0, w: 64 },
+      { label: "Episodes", x: 64, w: 22 },
+      { label: "% of Total", x: 86, w: 22 },
+      { label: "Frequency bar", x: 108, w: 46 },
+      { label: "Avg severity", x: 154, w: 22 },
+      { label: "Skip meal?", x: 156+20, w: 20 },
+    ]);
+
+    allTriggers.forEach(([trig, cnt], i) => {
+      newPageIfNeeded(6.5);
+      const affected = filteredEntries.filter(e => e.triggers.includes(trig));
+      const avgSev = (affected.reduce((a, e) => a + e.severity, 0) / affected.length).toFixed(1);
+      const skipMealPct = Math.round((affected.filter(e => e.skippedMeal).length / affected.length) * 100);
+      const pct = Math.round((cnt / filteredEntries.length) * 100);
+
+      setFill(i % 2 === 0 ? C.bg1 : [255,255,255]);
+      setDraw(C.light);
+      pdf.rect(M, y, CW, 6.5, "FD");
+
+      pdf.setFontSize(7.8);
+      pdf.setFont("helvetica", "normal");
+      setTxt(C.dark);
+      pdf.text(trig, M + 1, y + 4.3);
+      pdf.text(String(cnt), M + 65, y + 4.3);
+      pdf.text(`${pct}%`, M + 87, y + 4.3);
+
+      pdf.setFont("courier", "normal");
+      pdf.setFontSize(5.5);
+      setTxt(C.mid);
+      pdf.text(asciiBar(cnt, maxTrigCount, 20), M + 109, y + 4.3);
+
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(7.8);
+      setTxt(sevColor(parseFloat(avgSev)));
+      pdf.text(avgSev, M + 155, y + 4.3);
+
+      setTxt(skipMealPct > 50 ? C.sevHigh : C.mid);
+      pdf.text(`${skipMealPct}%`, M + 177, y + 4.3);
+
+      y += 6.5;
+    });
+
+    y += SECTION_GAP;
+
+    // ══════════════════════════════════════════════════════════════════════
+    // SECTION 5 — LIFESTYLE CORRELATIONS
+    // ══════════════════════════════════════════════════════════════════════
+
+    const withSleep    = filteredEntries.filter(e => e.sleep != null);
+    const withCaffeine = filteredEntries.filter(e => e.caffeine != null);
+    const withStress   = filteredEntries.filter(e => e.stress);
+
+    if (withSleep.length || withCaffeine.length || withStress.length) {
+      sectionHeading("5. Lifestyle Factor Correlations");
+
+      // Sleep buckets
+      if (withSleep.length) {
+        pdf.setFontSize(8);
+        pdf.setFont("helvetica", "bold");
+        setTxt(C.black);
+        pdf.text("Sleep Duration vs. Severity", M, y + 4);
+        y += 7;
+
+        const sleepBuckets: Record<string, { count: number; totalSev: number }> = {
+          "< 5h": { count: 0, totalSev: 0 },
+          "5–6h": { count: 0, totalSev: 0 },
+          "6–7h": { count: 0, totalSev: 0 },
+          "7–8h": { count: 0, totalSev: 0 },
+          "> 8h": { count: 0, totalSev: 0 },
+        };
+        withSleep.forEach(e => {
+          const s = e.sleep!;
+          const k = s < 5 ? "< 5h" : s < 6 ? "5–6h" : s < 7 ? "6–7h" : s < 8 ? "7–8h" : "> 8h";
+          sleepBuckets[k].count++;
+          sleepBuckets[k].totalSev += e.severity;
+        });
+
+        tableHeader([
+          { label: "Sleep range", x: 0, w: 40 },
+          { label: "Episodes", x: 40, w: 30 },
+          { label: "Avg severity", x: 70, w: 30 },
+        ]);
+
+        Object.entries(sleepBuckets).filter(([,d]) => d.count > 0).forEach(([k, d], i) => {
+          const avg = (d.totalSev / d.count).toFixed(1);
+          tableRow([
+            { text: k, x: 0, w: 40 },
+            { text: String(d.count), x: 40, w: 30 },
+            { text: avg, x: 70, w: 30, bold: true, color: sevColor(parseFloat(avg)) },
+          ], i);
+        });
+        y += 3;
+      }
+
+      // Caffeine buckets
+      if (withCaffeine.length) {
+        newPageIfNeeded(40);
+        pdf.setFontSize(8);
+        pdf.setFont("helvetica", "bold");
+        setTxt(C.black);
+        pdf.text("Caffeine Intake vs. Severity", M, y + 4);
+        y += 7;
+
+        const cafBuckets: Record<string, { count: number; totalSev: number }> = {
+          "0mg": { count: 0, totalSev: 0 },
+          "1–100mg": { count: 0, totalSev: 0 },
+          "101–200mg": { count: 0, totalSev: 0 },
+          "201–300mg": { count: 0, totalSev: 0 },
+          "> 300mg": { count: 0, totalSev: 0 },
+        };
+        withCaffeine.forEach(e => {
+          const c = e.caffeine!;
+          const k = c === 0 ? "0mg" : c <= 100 ? "1–100mg" : c <= 200 ? "101–200mg" : c <= 300 ? "201–300mg" : "> 300mg";
+          cafBuckets[k].count++;
+          cafBuckets[k].totalSev += e.severity;
+        });
+
+        tableHeader([
+          { label: "Caffeine range", x: 0, w: 44 },
+          { label: "Episodes", x: 44, w: 30 },
+          { label: "Avg severity", x: 74, w: 30 },
+        ]);
+
+        Object.entries(cafBuckets).filter(([,d]) => d.count > 0).forEach(([k, d], i) => {
+          const avg = (d.totalSev / d.count).toFixed(1);
+          tableRow([
+            { text: k, x: 0, w: 44 },
+            { text: String(d.count), x: 44, w: 30 },
+            { text: avg, x: 74, w: 30, bold: true, color: sevColor(parseFloat(avg)) },
+          ], i);
+        });
+        y += 3;
+      }
+
+      // Stress
+      if (withStress.length) {
+        newPageIfNeeded(40);
+        pdf.setFontSize(8);
+        pdf.setFont("helvetica", "bold");
+        setTxt(C.black);
+        pdf.text("Stress Level vs. Severity", M, y + 4);
+        y += 7;
+
+        const stressMap: Record<string, { count: number; totalSev: number }> = {};
+        withStress.forEach(e => {
+          const k = e.stress!;
+          if (!stressMap[k]) stressMap[k] = { count: 0, totalSev: 0 };
+          stressMap[k].count++;
+          stressMap[k].totalSev += e.severity;
+        });
+
+        tableHeader([
+          { label: "Stress level", x: 0, w: 44 },
+          { label: "Episodes", x: 44, w: 30 },
+          { label: "Avg severity", x: 74, w: 30 },
+        ]);
+
+        Object.entries(stressMap).sort((a,b) => b[1].count - a[1].count).forEach(([k, d], i) => {
+          const avg = (d.totalSev / d.count).toFixed(1);
+          tableRow([
+            { text: k, x: 0, w: 44 },
+            { text: String(d.count), x: 44, w: 30 },
+            { text: avg, x: 74, w: 30, bold: true, color: sevColor(parseFloat(avg)) },
+          ], i);
+        });
+        y += 3;
+      }
+
+      y += SECTION_GAP;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // SECTION 6 — HORMONAL STATUS
+    // ══════════════════════════════════════════════════════════════════════
+
+    const hormoralEntries = filteredEntries.filter(e => e.hormonalStatus?.length);
+    if (hormoralEntries.length) {
+      sectionHeading("6. Hormonal Status During Episodes");
+
+      const horMap: Record<string, { count: number; totalSev: number }> = {};
+      hormoralEntries.forEach(e => {
+        e.hormonalStatus!.forEach(h => {
+          if (!horMap[h]) horMap[h] = { count: 0, totalSev: 0 };
+          horMap[h].count++;
+          horMap[h].totalSev += e.severity;
+        });
+      });
+
+      tableHeader([
+        { label: "Hormonal status", x: 0, w: 70 },
+        { label: "Episodes", x: 70, w: 30 },
+        { label: "% of logged", x: 100, w: 36 },
+        { label: "Avg severity", x: 136, w: 30 },
+      ]);
+
+      Object.entries(horMap).sort((a,b) => b[1].count - a[1].count).forEach(([h, d], i) => {
+        const avg = (d.totalSev / d.count).toFixed(1);
+        const pct = Math.round((d.count / filteredEntries.length) * 100);
+        tableRow([
+          { text: h, x: 0, w: 70 },
+          { text: String(d.count), x: 70, w: 30 },
+          { text: `${pct}%`, x: 100, w: 36 },
+          { text: avg, x: 136, w: 30, bold: true, color: sevColor(parseFloat(avg)) },
+        ], i);
+      });
+
+      y += SECTION_GAP;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // SECTION 7 — MEDICATION USAGE
+    // ══════════════════════════════════════════════════════════════════════
+
+    const allMeds = filteredEntries.flatMap(e => e.meds);
+    if (allMeds.length) {
+      sectionHeading("7. Medication Usage");
+
+      const medMap: Record<string, { count: number; totalSev: number }> = {};
+      filteredEntries.forEach(e => {
+        e.meds.forEach(m => {
+          if (!medMap[m]) medMap[m] = { count: 0, totalSev: 0 };
+          medMap[m].count++;
+          medMap[m].totalSev += e.severity;
+        });
+      });
+
+      tableHeader([
+        { label: "Medication", x: 0, w: 70 },
+        { label: "Times used", x: 70, w: 30 },
+        { label: "% of episodes", x: 100, w: 40 },
+        { label: "Avg severity at use", x: 140, w: 42 },
+      ]);
+
+      Object.entries(medMap).sort((a,b) => b[1].count - a[1].count).forEach(([med, d], i) => {
+        const avg = (d.totalSev / d.count).toFixed(1);
+        const pct = Math.round((d.count / filteredEntries.length) * 100);
+        tableRow([
+          { text: med, x: 0, w: 70 },
+          { text: String(d.count), x: 70, w: 30 },
+          { text: `${pct}%`, x: 100, w: 40 },
+          { text: avg, x: 140, w: 42, bold: true, color: sevColor(parseFloat(avg)) },
+        ], i);
+      });
+
+      y += SECTION_GAP;
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // SECTION 8 — FULL EPISODE LOG
+  // ══════════════════════════════════════════════════════════════════════════
+
+  sectionHeading("8. Full Episode Log");
+
+  const chronoLog = filteredEntries.slice().reverse();
+  chronoLog.forEach((entry, i) => {
+    const rowH = entry.notes ? 14 : 9;
+    newPageIfNeeded(rowH + 2);
+
+    const sev = entry.severity;
+    const sc = sevColor(sev);
+
+    // Episode card
+    setFill(i % 2 === 0 ? C.bg1 : [255,255,255]);
+    setDraw(C.light);
+    pdf.rect(M, y, CW, rowH, "FD");
+
+    // Left severity bar
+    setFill(sc);
+    pdf.rect(M, y, 3, rowH, "F");
+
+    // Row 1: date, area, severity, duration, meds
+    pdf.setFontSize(8.5);
+    pdf.setFont("helvetica", "bold");
+    setTxt(C.black);
+    pdf.text(entry.date, M + 5, y + 4);
+
     pdf.setFont("helvetica", "normal");
-    pdf.setTextColor(30, 30, 40);
+    setTxt(C.mid);
+    pdf.text(entry.area, M + 28, y + 4);
 
-    const xs = [0, 22, 58, 66, 84, 124, 156];
-    pdf.text(entry.date, MARGIN + xs[0], y + 4.5);
-    pdf.text(entry.area.slice(0, 16), MARGIN + xs[1], y + 4.5);
-    pdf.text(String(sev), MARGIN + xs[2] + 1, y + 4.5);
-    pdf.text(minToHm(entry.durationMin), MARGIN + xs[3], y + 4.5);
+    pdf.setFont("helvetica", "bold");
+    setTxt(sc);
+    pdf.text(`${sev}/10`, M + 80, y + 4);
 
-    const trigStr = entry.triggers.join(", ");
-    pdf.text(pdf.splitTextToSize(trigStr, 36)[0], MARGIN + xs[4], y + 4.5);
+    pdf.setFont("helvetica", "normal");
+    setTxt(C.dark);
+    pdf.text(minToHm(entry.durationMin), M + 98, y + 4);
 
-    const medStr = entry.meds.join(", ");
-    pdf.text(pdf.splitTextToSize(medStr, 28)[0], MARGIN + xs[5], y + 4.5);
+    if (entry.meds.length) {
+      pdf.setFontSize(7.2);
+      setTxt(C.mid);
+      pdf.text("Rx: " + entry.meds.join(", "), M + 120, y + 4);
+    }
 
-    const horStr = (entry.hormonalStatus ?? []).join(", ");
-    pdf.text(pdf.splitTextToSize(horStr, 30)[0], MARGIN + xs[6], y + 4.5);
+    // Row 2: symptoms
+    pdf.setFontSize(7);
+    pdf.setFont("helvetica", "normal");
+    setTxt(C.mid);
+    const symLine = "Symptoms: " + (entry.symptoms.join(" · ") || "—");
+    pdf.text(pdf.splitTextToSize(symLine, CW - 10)[0], M + 5, y + 8);
 
-    // Notes sub-row
+    // Row 3: triggers and hormonal
+    if (rowH >= 9) {
+      setTxt(C.muted);
+      const trigLine = "Triggers: " + (entry.triggers.join(", ") || "—");
+      pdf.text(pdf.splitTextToSize(trigLine, CW / 2 - 8)[0], M + 5, y + 11.5);
+
+      if (entry.hormonalStatus?.length) {
+        pdf.text("Hormonal: " + entry.hormonalStatus.join(", "), M + CW/2, y + 11.5);
+      }
+    }
+
+    // Notes
     if (entry.notes) {
-      y += rowH;
-      if (y + 5 > A4_H - MARGIN) { pdf.addPage(); y = MARGIN; }
       pdf.setFontSize(7);
       pdf.setFont("helvetica", "italic");
-      pdf.setTextColor(120, 120, 140);
-      const noteStr = pdf.splitTextToSize(`Note: ${entry.notes}`, CONTENT_W - 4)[0];
-      pdf.text(noteStr, MARGIN + 2, y + 3.5);
-      y += 5;
-    } else {
-      y += rowH;
+      setTxt(C.muted);
+      pdf.text("Note: " + pdf.splitTextToSize(entry.notes, CW - 10)[0], M + 5, y + 13);
     }
+
+    y += rowH + 0.5;
   });
-  y += 8;
 
-  // ── AI REPORT SECTIONS ────────────────────────────────────────────────────
+  y += SECTION_GAP;
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // SECTION 9 — AI CLINICAL NARRATIVE
+  // ══════════════════════════════════════════════════════════════════════════
+
   if (aiReport) {
-    if (y + 10 > A4_H - MARGIN) { pdf.addPage(); y = MARGIN; }
+    sectionHeading("9. AI Clinical Narrative");
 
-    // AI header bar
-    pdf.setFillColor(235, 230, 255);
-    pdf.roundedRect(MARGIN, y, CONTENT_W, 9, 2, 2, "F");
-    pdf.setFontSize(9);
-    pdf.setFont("helvetica", "bold");
-    pdf.setTextColor(60, 40, 100);
-    pdf.text("✦  AI Clinical Narrative", MARGIN + 4, y + 6);
     pdf.setFontSize(7.5);
-    pdf.setFont("helvetica", "normal");
-    pdf.setTextColor(120, 100, 160);
-    pdf.text("AI-assisted · not a clinical diagnosis", A4_W - MARGIN - 2, y + 6, { align: "right" });
-    y += 13;
-
-    addTextSection("Executive Summary", aiReport.executiveSummary);
-
-    if (aiReport.patternInsights?.length) {
-      addTextSection("Pattern Insights", aiReport.patternInsights);
-    }
-    if (aiReport.triggerAnalysis) {
-      addTextSection("Trigger Analysis", aiReport.triggerAnalysis);
-    }
-    if (aiReport.medicationSummary) {
-      addTextSection("Medication Summary", aiReport.medicationSummary);
-    }
-    if (aiReport.hormonalNotes) {
-      addTextSection("Hormonal Patterns", aiReport.hormonalNotes);
-    }
-    if (aiReport.anomalies?.length) {
-      addTextSection("Anomalies / Red Flags", aiReport.anomalies, { color: [180, 40, 40] });
-    }
-    if (aiReport.clinicalRecommendations?.length) {
-      addTextSection("Clinical Recommendations", aiReport.clinicalRecommendations, { color: [30, 110, 70], numbered: true });
-    }
-  }
-
-  // ── PATIENT NOTES ─────────────────────────────────────────────────────────
-  if (patientNotes) {
-    if (y + 20 > A4_H - MARGIN) { pdf.addPage(); y = MARGIN; }
-    pdf.setFillColor(250, 249, 255);
-    pdf.setDrawColor(210, 205, 235);
-    const boxH = Math.min(40, 10 + Math.ceil(patientNotes.length / 80) * 6);
-    pdf.roundedRect(MARGIN, y, CONTENT_W, boxH, 2, 2, "FD");
-    pdf.setFontSize(7.5);
-    pdf.setFont("helvetica", "bold");
-    pdf.setTextColor(100, 90, 130);
-    pdf.text("PATIENT NOTES", MARGIN + 3, y + 5);
     pdf.setFont("helvetica", "italic");
-    pdf.setFontSize(9);
-    pdf.setTextColor(60, 55, 80);
-    const wrapped = pdf.splitTextToSize(`"${patientNotes}"`, CONTENT_W - 8);
-    wrapped.slice(0, 6).forEach((line: string, i: number) => {
-      pdf.text(line, MARGIN + 3, y + 10 + i * 5.5);
+    setTxt(C.muted);
+    pdf.text("AI-assisted · for clinical context only · not a substitute for professional medical assessment", M, y);
+    y += 6;
+
+    const aiSections: [string, string | string[], boolean?][] = [
+      ["Executive Summary", aiReport.executiveSummary],
+      ["Pattern Insights", aiReport.patternInsights],
+      ["Trigger Analysis", aiReport.triggerAnalysis],
+      ["Medication Summary", aiReport.medicationSummary],
+      ...(aiReport.hormonalNotes ? [["Hormonal Patterns", aiReport.hormonalNotes] as [string, string]] : []),
+      ...(aiReport.anomalies?.length ? [["Anomalies / Red Flags", aiReport.anomalies] as [string, string[]]] : []),
+      ...(aiReport.clinicalRecommendations?.length ? [["Clinical Recommendations", aiReport.clinicalRecommendations, true] as [string, string[], boolean]] : []),
+    ];
+
+    aiSections.forEach(([title, content, numbered]) => {
+      if (!content || (Array.isArray(content) && !content.length)) return;
+      newPageIfNeeded(12);
+
+      // Sub-heading
+      rule();
+      pdf.setFontSize(8.5);
+      pdf.setFont("helvetica", "bold");
+      setTxt(C.black);
+      pdf.text(title, M, y);
+      y += 5;
+
+      if (Array.isArray(content)) {
+        bulletList(content, numbered);
+      } else {
+        bodyText(content);
+      }
+      y += 2;
     });
-    y += boxH + 6;
+
+    y += SECTION_GAP;
   }
 
-  // ── FOOTER on every page ──────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════════
+  // PATIENT NOTES
+  // ══════════════════════════════════════════════════════════════════════════
+
+  if (patientNotes) {
+    sectionHeading("Patient Notes");
+    newPageIfNeeded(20);
+    setFill(C.bg1);
+    setDraw(C.light);
+    const noteLines = pdf.splitTextToSize(`"${patientNotes}"`, CW - 8);
+    const boxH = 8 + noteLines.length * LH;
+    pdf.rect(M, y, CW, boxH, "FD");
+    pdf.setFontSize(8);
+    pdf.setFont("helvetica", "italic");
+    setTxt(C.dark);
+    noteLines.forEach((line: string, i: number) => {
+      pdf.text(line, M + 4, y + 6 + i * LH);
+    });
+    y += boxH + SECTION_GAP;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // FOOTER — all pages
+  // ══════════════════════════════════════════════════════════════════════════
+
   const totalPages = (pdf as any).internal.getNumberOfPages();
   for (let p = 1; p <= totalPages; p++) {
     pdf.setPage(p);
+    setFill(C.black);
+    pdf.rect(0, A4_H - 10, A4_W, 10, "F");
     pdf.setFontSize(7);
     pdf.setFont("helvetica", "normal");
-    pdf.setTextColor(170, 165, 185);
+    setTxt([200, 200, 200]);
     pdf.text(
-      `Migraine Clinical Report · ${format(dateFrom, "MMM d")} – ${format(dateTo, "MMM d, yyyy")} · Page ${p} of ${totalPages}`,
-      A4_W / 2,
-      A4_H - 6,
-      { align: "center" }
+      `Migraine Clinical Report  ·  ${format(dateFrom, "MMM d, yyyy")} – ${format(dateTo, "MMM d, yyyy")}  ·  ${filteredEntries.length} episodes`,
+      M,
+      A4_H - 4
     );
+    setTxt([140, 140, 140]);
+    pdf.text(`Page ${p} of ${totalPages}`, A4_W - M, A4_H - 4, { align: "right" });
   }
 
   pdf.save(`migraine-report-${format(dateFrom, "yyyy-MM-dd")}-to-${format(dateTo, "yyyy-MM-dd")}.pdf`);
