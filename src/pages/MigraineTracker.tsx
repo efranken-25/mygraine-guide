@@ -6,6 +6,7 @@ import SoundscapeCard from "@/components/SoundscapeCard";
 import { Droplets } from "lucide-react";
 import MedicalAlertDialog, { checkMedicalAlert, AlertResult } from "@/components/MedicalAlertDialog";
 import OtcRecommendationDialog from "@/components/OtcRecommendationDialog";
+import { useUserEntries } from "@/lib/userEntriesContext";
 
 const CALM_QUOTES = [
   { text: "This too shall pass. Be gentle with yourself.", author: "Ancient Wisdom" },
@@ -226,13 +227,13 @@ function MedEffectivenessInsights({ entries }: { entries: UserEntry[] }) {
 }
 
 export default function MigraineTracker() {
-  const [userEntries, setUserEntries] = useState<UserEntry[]>([]);
+  const { userEntries, addEntry } = useUserEntries();
   const [showForm, setShowForm] = useState(false);
   const [alertResult, setAlertResult] = useState<AlertResult | null>(null);
   const [showOtcDialog, setShowOtcDialog] = useState(false);
 
   const handleSave = (entry: UserEntry) => {
-    setUserEntries([entry, ...userEntries]);
+    addEntry(entry);
     setShowForm(false);
 
     // Check if no rescue meds were logged
