@@ -19,18 +19,18 @@ const SYMPTOMS = [
 ];
 
 const SYMPTOM_DEFINITIONS: Record<string, string> = {
-  "Nausea": "Queasy",
-  "Aura": "Visual sparks",
-  "Light sensitivity": "Photophobia",
-  "Sound sensitivity": "Hyperacusis",
-  "Vomiting": "Throwing up",
-  "Dizziness": "Lightheaded",
-  "Neck pain": "Stiffness",
-  "Eye pain": "Ocular",
-  "Fatigue": "Tiredness",
-  "Brain fog": "Mental haze",
-  "Tingling": "Pins & needles",
-  "Visual disturbance": "Blurred vision",
+  "Nausea": "Feeling like you might throw up",
+  "Aura": "Seeing flashes, zigzags, or blind spots",
+  "Light sensitivity": "Bright lights hurt your eyes",
+  "Sound sensitivity": "Sounds feel painfully loud",
+  "Vomiting": "Actually throwing up",
+  "Dizziness": "Feeling unsteady or spinning",
+  "Neck pain": "Tight, stiff feeling in your neck",
+  "Eye pain": "Pain behind or around your eyes",
+  "Fatigue": "Feeling very tired and drained",
+  "Brain fog": "Trouble thinking or concentrating",
+  "Tingling": "Pins and needles sensation",
+  "Visual disturbance": "Blurry or disturbed vision",
 };
 
 export default function Index() {
