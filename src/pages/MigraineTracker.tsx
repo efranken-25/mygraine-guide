@@ -4,6 +4,7 @@ import { Plus } from "lucide-react";
 import LogMigraineForm, { UserEntry } from "@/components/LogMigraineForm";
 import SoundscapeCard from "@/components/SoundscapeCard";
 import { Droplets } from "lucide-react";
+import MedicalAlertDialog, { checkMedicalAlert, AlertResult } from "@/components/MedicalAlertDialog";
 
 const CALM_QUOTES = [
   { text: "This too shall pass. Be gentle with yourself.", author: "Ancient Wisdom" },
@@ -106,6 +107,13 @@ function WaterReminderCard() {
 export default function MigraineTracker() {
   const [userEntries, setUserEntries] = useState<UserEntry[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [alertResult, setAlertResult] = useState<AlertResult | null>(null);
+
+  const handleSave = (entry: UserEntry) => {
+    setUserEntries([entry, ...userEntries]);
+    const result = checkMedicalAlert(entry);
+    if (result.triggered) setAlertResult(result);
+  };
 
   return (
     <div className="space-y-5">
@@ -122,8 +130,16 @@ export default function MigraineTracker() {
 
       {showForm && (
         <LogMigraineForm
-          onSave={(e) => setUserEntries([e, ...userEntries])}
+          onSave={handleSave}
           onClose={() => setShowForm(false)}
+        />
+      )}
+
+      {alertResult && (
+        <MedicalAlertDialog
+          open={true}
+          onClose={() => setAlertResult(null)}
+          result={alertResult}
         />
       )}
 
