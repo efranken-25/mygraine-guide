@@ -293,10 +293,9 @@ async function exportClinicalPDF(
     pdf.setFont("helvetica", "bold");
     setTxt(C.mid);
     pdf.text("Date", M + 1, y + 4);
-    pdf.text("Sev", M + 24, y + 4);
-    pdf.text("Bar (1-10)", M + 34, y + 4);
-    pdf.text("Duration", M + 134, y + 4);
-    pdf.text("Trend", M + 160, y + 4);
+    pdf.text("Severity", M + 50, y + 4);
+    pdf.text("Duration", M + 90, y + 4);
+    pdf.text("Trend", M + 130, y + 4);
     setFill(C.bg2);
     pdf.rect(M, y, CW, 6, "F");
     y += 6;
@@ -316,22 +315,15 @@ async function exportClinicalPDF(
       setTxt(C.dark);
       pdf.text(entry.date, M + 1, y + 4.3);
 
-      // Severity number in colour
+      // Severity score
       pdf.setFont("helvetica", "bold");
       setTxt(sc);
-      pdf.text(String(sev), M + 24, y + 4.3);
-
-      // ASCII bar
-      pdf.setFont("courier", "normal");
-      pdf.setFontSize(5.5);
-      setTxt(sc);
-      pdf.text(asciiBar(sev, 10, 36), M + 34, y + 4.3);
+      pdf.text(`${sev} / 10`, M + 50, y + 4.3);
 
       // Duration
       pdf.setFont("helvetica", "normal");
-      pdf.setFontSize(7.5);
       setTxt(C.dark);
-      pdf.text(minToHm(entry.durationMin), M + 134, y + 4.3);
+      pdf.text(minToHm(entry.durationMin), M + 90, y + 4.3);
 
       // Trend arrow vs previous
       if (prevSev !== null) {
@@ -340,7 +332,7 @@ async function exportClinicalPDF(
         const ac = delta > 0 ? C.sevHigh : delta < 0 ? C.sevLow : C.mid;
         pdf.setFont("helvetica", "bold");
         setTxt(ac);
-        pdf.text(arrow, M + 160, y + 4.3);
+        pdf.text(arrow, M + 130, y + 4.3);
       }
       prevSev = sev;
       y += 6.5;
