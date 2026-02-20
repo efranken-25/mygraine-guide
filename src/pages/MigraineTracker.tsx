@@ -7,7 +7,7 @@ import LogMigraineForm, { UserEntry } from "@/components/LogMigraineForm";
 import SoundscapeCard from "@/components/SoundscapeCard";
 import { Droplets } from "lucide-react";
 import MedicalAlertDialog, { checkMedicalAlert, AlertResult } from "@/components/MedicalAlertDialog";
-import { useEntries } from "@/lib/entriesContext";
+import OtcRecommendationDialog from "@/components/OtcRecommendationDialog";
 
 const CALM_QUOTES = [
   { text: "This too shall pass. Be gentle with yourself.", author: "Ancient Wisdom" },
@@ -264,6 +264,7 @@ export default function MigraineTracker() {
   const { entries, addEntry } = useEntries();
   const [showForm, setShowForm] = useState(false);
   const [alertResult, setAlertResult] = useState<AlertResult | null>(null);
+  const [showOtcDialog, setShowOtcDialog] = useState(false);
 
   const handleSave = useCallback((entry: UserEntry) => {
     addEntry(entry);
@@ -273,12 +274,18 @@ export default function MigraineTracker() {
     toast.success("Migraine logged", {
       description: `Severity ${entry.severity}/10 · ${durationStr(entry.durationMin)}${medStr}`,
     });
+    
+    // Check if no rescue meds were logged
+    const hasRescueMeds = entry.meds && entry.meds.length > 0 && !entry.meds.every(m => m === "None" || m === "Unknown");
+    if (!hasRescueMeds) {
+      setTimeout(() => setShowOtcDialog(true), 100);
+    }
 
     const muted = localStorage.getItem("mute-medical-alerts") === "true";
     if (!muted) {
       const result = checkMedicalAlert(entry);
       if (result.triggered) {
-        setTimeout(() => setAlertResult(result), 50);
+        setTimeout(() => setAlertResult(result), hasRescueMeds ? 50 : 600);
       }
     }
   }, [addEntry]);
@@ -314,7 +321,9 @@ export default function MigraineTracker() {
         />
       )}
 
-      <MedEffectivenessInsights entries={entries} />
+      <OtcRecommendationDialog open={showOtcDialog} onClose={() => setShowOtcDialog(false)} />
+
+      <MedEffectivenessInsights entries={userEntries} />
 
       <SoundscapeCard />
     </div>

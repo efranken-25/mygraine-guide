@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Zap, Clock, CheckCircle2 } from "lucide-react";
 import SeveritySlider from "@/components/SeveritySlider";
 import HeadMap from "@/components/HeadMap";
+import OtcRecommendationDialog from "@/components/OtcRecommendationDialog";
 
 const SYMPTOMS = [
   "Nausea", "Aura", "Light sensitivity", "Sound sensitivity",
@@ -25,6 +26,7 @@ export default function Index() {
   const [symptoms, setSymptoms] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showOtcDialog, setShowOtcDialog] = useState(false);
 
   const toggleSymptom = (s: string) => {
     setSymptoms((prev) => prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]);
@@ -44,6 +46,8 @@ export default function Index() {
     } else {
       setActiveMigraine(data.id);
       toast({ title: "Migraine logged", description: "Take care. You can end it when it passes." });
+      // Show OTC recommendation since this form has no medication input
+      setTimeout(() => setShowOtcDialog(true), 100);
     }
     setLoading(false);
   };
@@ -124,6 +128,8 @@ export default function Index() {
           </Button>
         </div>
       )}
+
+      <OtcRecommendationDialog open={showOtcDialog} onClose={() => setShowOtcDialog(false)} />
     </div>
   );
 }
