@@ -7,16 +7,16 @@ import HeadMap, { HEAD_AREAS } from "@/components/HeadMap";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const SYMPTOM_DEFINITIONS: Record<string, string> = {
-  "Throbbing Pain": "Pulsing",
-  "Nausea": "Queasy",
-  "Light Sensitivity": "Photophobia",
-  "Sound Sensitivity": "Hyperacusis",
-  "Aura": "Visual sparks",
-  "Eye Pain": "Ocular",
-  "Neck Tension": "Stiffness",
-  "Vomiting": "Throwing up",
-  "Dizziness": "Lightheaded",
-  "Severe Head Pain": "Intense ache",
+  "Throbbing Pain": "Heartbeat-like pulsing in your head",
+  "Nausea": "Feeling like you might throw up",
+  "Light Sensitivity": "Bright lights hurt your eyes",
+  "Sound Sensitivity": "Sounds feel painfully loud",
+  "Aura": "Seeing flashes, zigzags, or blind spots",
+  "Eye Pain": "Pain behind or around your eyes",
+  "Neck Tension": "Tight, stiff feeling in your neck",
+  "Vomiting": "Actually throwing up",
+  "Dizziness": "Feeling unsteady or spinning",
+  "Severe Head Pain": "Very intense, debilitating head pain",
 };
 
 export const SYMPTOM_OPTIONS = ["Throbbing Pain", "Nausea", "Light Sensitivity", "Sound Sensitivity", "Aura", "Eye Pain", "Neck Tension", "Vomiting", "Dizziness", "Severe Head Pain"];
