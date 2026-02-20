@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Zap } from "lucide-react";
 import LogMigraineForm, { UserEntry } from "@/components/LogMigraineForm";
 import SoundscapeCard from "@/components/SoundscapeCard";
 import { Droplets } from "lucide-react";
@@ -104,6 +104,67 @@ function WaterReminderCard() {
   );
 }
 
+function MedEffectivenessInsights({ entries }: { entries: UserEntry[] }) {
+  const insights = useMemo(() => {
+    const stats: Record<string, { totalTime: number; count: number; helped: number; total: number }> = {};
+    entries.forEach((entry) => {
+      if (!entry.medEffectiveness) return;
+      Object.entries(entry.medEffectiveness).forEach(([med, eff]) => {
+        if (!stats[med]) stats[med] = { totalTime: 0, count: 0, helped: 0, total: 0 };
+        stats[med].total += 1;
+        if (eff.helped === "yes" || eff.helped === "partial") {
+          stats[med].helped += 1;
+          if (eff.timeToReliefMin) {
+            stats[med].totalTime += eff.timeToReliefMin;
+            stats[med].count += 1;
+          }
+        }
+      });
+    });
+    return Object.entries(stats)
+      .filter(([, s]) => s.total >= 1)
+      .map(([med, s]) => ({
+        med,
+        avgTime: s.count > 0 ? Math.round(s.totalTime / s.count) : null,
+        helpRate: Math.round((s.helped / s.total) * 100),
+        total: s.total,
+      }));
+  }, [entries]);
+
+  if (insights.length === 0) return null;
+
+  return (
+    <div className="rounded-2xl overflow-hidden border border-border">
+      <div className="px-4 py-3 flex items-center gap-2" style={{ background: "linear-gradient(135deg, hsl(262 55% 94%), hsl(195 50% 91%))" }}>
+        <Zap className="h-4 w-4" style={{ color: "hsl(265 50% 48%)" }} />
+        <p className="text-sm font-semibold" style={{ color: "hsl(262 40% 24%)" }}>Your medication insights</p>
+      </div>
+      <div className="divide-y divide-border">
+        {insights.map(({ med, avgTime, helpRate, total }) => (
+          <div key={med} className="px-4 py-3 flex items-center justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">{med}</p>
+              {avgTime ? (
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Relieves pain within <span className="font-semibold text-foreground">{avgTime} mins</span> on average
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground mt-0.5">No relief time logged yet</p>
+              )}
+            </div>
+            <div className="text-right flex-shrink-0">
+              <p className={`text-sm font-bold ${helpRate >= 70 ? "text-[hsl(var(--severity-low))]" : helpRate >= 40 ? "text-[hsl(var(--warning))]" : "text-destructive"}`}>
+                {helpRate}%
+              </p>
+              <p className="text-[10px] text-muted-foreground">effective ({total}x)</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function MigraineTracker() {
   const [userEntries, setUserEntries] = useState<UserEntry[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -148,6 +209,8 @@ export default function MigraineTracker() {
           result={alertResult}
         />
       )}
+
+      <MedEffectivenessInsights entries={userEntries} />
 
       <SoundscapeCard />
     </div>
