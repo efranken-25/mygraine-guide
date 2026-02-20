@@ -370,11 +370,10 @@ async function exportClinicalPDF(
     const maxSymCount = symRanked[0]?.count ?? 1;
 
     tableHeader([
-      { label: "Symptom", x: 0, w: 64 },
-      { label: "Episodes", x: 64, w: 24 },
-      { label: "Prevalence", x: 88, w: 22 },
-      { label: "Frequency bar", x: 110, w: 48 },
-      { label: "Avg severity", x: 158, w: 24 },
+      { label: "Symptom", x: 0, w: 70 },
+      { label: "Episodes", x: 70, w: 30 },
+      { label: "Prevalence", x: 100, w: 30 },
+      { label: "Avg severity", x: 130, w: 30 },
     ]);
 
     symRanked.forEach((row, i) => {
@@ -388,19 +387,13 @@ async function exportClinicalPDF(
       pdf.setFont("helvetica", "normal");
       setTxt(C.dark);
       pdf.text(row.sym, M + 1, y + 4.3);
-      pdf.text(String(row.count), M + 65, y + 4.3);
-      pdf.text(`${pct}%`, M + 89, y + 4.3);
-
-      // Frequency bar
-      pdf.setFont("courier", "normal");
-      pdf.setFontSize(5.5);
-      setTxt(C.mid);
-      pdf.text(asciiBar(row.count, maxSymCount, 22), M + 111, y + 4.3);
+      pdf.text(String(row.count), M + 71, y + 4.3);
+      pdf.text(`${pct}%`, M + 101, y + 4.3);
 
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(7.8);
       setTxt(sevColor(Math.round(row.avgSev)));
-      pdf.text(row.avgSev.toFixed(1), M + 159, y + 4.3);
+      pdf.text(row.avgSev.toFixed(1), M + 131, y + 4.3);
 
       y += 6.5;
     });
@@ -423,11 +416,10 @@ async function exportClinicalPDF(
 
     tableHeader([
       { label: "Trigger", x: 0, w: 64 },
-      { label: "Episodes", x: 64, w: 22 },
-      { label: "% of Total", x: 86, w: 22 },
-      { label: "Frequency bar", x: 108, w: 46 },
-      { label: "Avg severity", x: 154, w: 22 },
-      { label: "Skip meal?", x: 156+20, w: 20 },
+      { label: "Episodes", x: 64, w: 24 },
+      { label: "% of Total", x: 88, w: 24 },
+      { label: "Avg severity", x: 112, w: 28 },
+      { label: "Skip meal?", x: 140, w: 24 },
     ]);
 
     allTriggers.forEach(([trig, cnt], i) => {
@@ -446,20 +438,15 @@ async function exportClinicalPDF(
       setTxt(C.dark);
       pdf.text(trig, M + 1, y + 4.3);
       pdf.text(String(cnt), M + 65, y + 4.3);
-      pdf.text(`${pct}%`, M + 87, y + 4.3);
-
-      pdf.setFont("courier", "normal");
-      pdf.setFontSize(5.5);
-      setTxt(C.mid);
-      pdf.text(asciiBar(cnt, maxTrigCount, 20), M + 109, y + 4.3);
+      pdf.text(`${pct}%`, M + 89, y + 4.3);
 
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(7.8);
       setTxt(sevColor(parseFloat(avgSev)));
-      pdf.text(avgSev, M + 155, y + 4.3);
+      pdf.text(avgSev, M + 113, y + 4.3);
 
       setTxt(skipMealPct > 50 ? C.sevHigh : C.mid);
-      pdf.text(`${skipMealPct}%`, M + 177, y + 4.3);
+      pdf.text(`${skipMealPct}%`, M + 141, y + 4.3);
 
       y += 6.5;
     });
