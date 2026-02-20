@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, Brain, Clock, Droplets, Wind, Pill, Plus, Tr
 import { cn } from "@/lib/utils";
 import LogMigraineForm, { UserEntry } from "@/components/LogMigraineForm";
 import MedicalAlertDialog, { checkMedicalAlert, AlertResult } from "@/components/MedicalAlertDialog";
+import OtcRecommendationDialog from "@/components/OtcRecommendationDialog";
 
 type MigraineDay = {
   date: Date;
@@ -116,6 +117,7 @@ export default function MigraineCalendar() {
   const [dismissedWarnings, setDismissedWarnings] = useState<Set<string>>(new Set());
   const [deletedSampleDates, setDeletedSampleDates] = useState<Set<string>>(new Set());
   const [quickAddDay, setQuickAddDay] = useState<Date | null>(null);
+  const [showOtcDialog, setShowOtcDialog] = useState(false);
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -203,6 +205,8 @@ export default function MigraineCalendar() {
     setUserEntries([entry, ...userEntries]);
     setQuickAddDay(null);
     setSelectedDay(day);
+    // Quick add has no meds, show OTC dialog
+    setTimeout(() => setShowOtcDialog(true), 100);
   };
 
   const openEditForm = (entry: UserEntry) => {
@@ -213,7 +217,6 @@ export default function MigraineCalendar() {
 
   const handleFormSave = (e: UserEntry) => {
     if (editingEntry) {
-      // Replace existing entry
       setUserEntries((prev) => prev.map((existing) => existing.id === editingEntry.id ? e : existing));
     } else {
       setUserEntries([e, ...userEntries]);
@@ -221,11 +224,18 @@ export default function MigraineCalendar() {
     setSelectedDay(null);
     setShowForm(false);
     setEditingEntry(undefined);
+
+    // Check if no rescue meds were logged
+    const hasRescueMeds = e.meds && e.meds.length > 0 && !e.meds.every(m => m === "None" || m === "Unknown");
+    if (!hasRescueMeds) {
+      setTimeout(() => setShowOtcDialog(true), 100);
+    }
+
     const muted = localStorage.getItem("mute-medical-alerts") === "true";
     if (!muted) {
       const result = checkMedicalAlert(e);
       if (result.triggered) {
-        setTimeout(() => setAlertResult(result), 50);
+        setTimeout(() => setAlertResult(result), hasRescueMeds ? 50 : 600);
       }
     }
   };
@@ -534,6 +544,8 @@ export default function MigraineCalendar() {
           onClose={() => { setShowForm(false); setEditingEntry(undefined); }}
         />
       )}
+
+      <OtcRecommendationDialog open={showOtcDialog} onClose={() => setShowOtcDialog(false)} />
     </div>
   );
 }
