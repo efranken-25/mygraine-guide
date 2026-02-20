@@ -5,6 +5,7 @@ import LogMigraineForm, { UserEntry } from "@/components/LogMigraineForm";
 import SoundscapeCard from "@/components/SoundscapeCard";
 import { Droplets } from "lucide-react";
 import MedicalAlertDialog, { checkMedicalAlert, AlertResult } from "@/components/MedicalAlertDialog";
+import OtcRecommendationDialog from "@/components/OtcRecommendationDialog";
 
 const CALM_QUOTES = [
   { text: "This too shall pass. Be gentle with yourself.", author: "Ancient Wisdom" },
@@ -228,15 +229,23 @@ export default function MigraineTracker() {
   const [userEntries, setUserEntries] = useState<UserEntry[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [alertResult, setAlertResult] = useState<AlertResult | null>(null);
+  const [showOtcDialog, setShowOtcDialog] = useState(false);
 
   const handleSave = (entry: UserEntry) => {
     setUserEntries([entry, ...userEntries]);
     setShowForm(false);
+
+    // Check if no rescue meds were logged
+    const hasRescueMeds = entry.meds && entry.meds.length > 0 && !entry.meds.every(m => m === "None" || m === "Unknown");
+    if (!hasRescueMeds) {
+      setTimeout(() => setShowOtcDialog(true), 100);
+    }
+
     const muted = localStorage.getItem("mute-medical-alerts") === "true";
     if (!muted) {
       const result = checkMedicalAlert(entry);
       if (result.triggered) {
-        setTimeout(() => setAlertResult(result), 50);
+        setTimeout(() => setAlertResult(result), hasRescueMeds ? 50 : 600);
       }
     }
   };
@@ -268,6 +277,8 @@ export default function MigraineTracker() {
           result={alertResult}
         />
       )}
+
+      <OtcRecommendationDialog open={showOtcDialog} onClose={() => setShowOtcDialog(false)} />
 
       <MedEffectivenessInsights entries={userEntries} />
 
