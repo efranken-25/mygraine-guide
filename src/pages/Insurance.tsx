@@ -1001,11 +1001,6 @@ function ComparePlansTab() {
 export default function Insurance() {
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Insurance</h1>
-        <p className="text-muted-foreground">Manage your plans, formulary & pharmacy support</p>
-      </div>
-
       <Tabs defaultValue="myplans" className="w-full">
         <TabsList className="w-full grid grid-cols-2">
           <TabsTrigger value="myplans" className="flex items-center gap-1.5">
