@@ -175,7 +175,23 @@ export default function LogMigraineForm({ onSave, onClose, initialDate }: Props)
           <div className="space-y-2">
             <Label className="text-sm font-medium">Symptoms</Label>
             <div className="flex flex-wrap gap-1.5">
-              {SYMPTOM_OPTIONS.map((s) => (
+              <button
+                onClick={() => {
+                  if (symptoms.includes("Unknown")) {
+                    setSymptoms([]);
+                  } else {
+                    setSymptoms(["Unknown"]);
+                  }
+                }}
+                className={`px-3 py-1.5 rounded-full text-xs transition-all border ${
+                  symptoms.includes("Unknown")
+                    ? "bg-muted-foreground/20 text-foreground border-muted-foreground/40"
+                    : "bg-muted text-muted-foreground border-transparent"
+                }`}
+              >
+                I don't know
+              </button>
+              {!symptoms.includes("Unknown") && SYMPTOM_OPTIONS.map((s) => (
                 <button key={s} onClick={() => toggle(symptoms, s, setSymptoms)}
                   className={`px-3 py-1.5 rounded-full text-xs transition-all border ${symptoms.includes(s) ? "bg-primary/15 text-primary border-primary/40" : "bg-muted text-muted-foreground border-transparent"}`}>
                   {s}
