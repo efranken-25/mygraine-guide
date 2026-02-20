@@ -11,8 +11,7 @@ import MigraineCalendar from "@/pages/MigraineCalendar";
 import Predictions from "@/pages/Predictions";
 import Recommendations from "@/pages/Recommendations";
 import MedicationsPage from "@/pages/MedicationsPage";
-import Insurance from "@/pages/Insurance";
-import FindCare from "@/pages/FindCare";
+import PriorAuthHub from "@/pages/PriorAuthHub";
 import Auth from "@/pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -33,8 +32,7 @@ const AppRoutes = () => (
     <Route path="/predictions" element={<RequireAuth><AppLayout><Predictions /></AppLayout></RequireAuth>} />
     <Route path="/recommendations" element={<RequireAuth><AppLayout><Recommendations /></AppLayout></RequireAuth>} />
     <Route path="/medications" element={<RequireAuth><AppLayout><MedicationsPage /></AppLayout></RequireAuth>} />
-    <Route path="/insurance" element={<RequireAuth><AppLayout><Insurance /></AppLayout></RequireAuth>} />
-    <Route path="/find-care" element={<RequireAuth><AppLayout><FindCare /></AppLayout></RequireAuth>} />
+    <Route path="/prior-auth" element={<RequireAuth><AppLayout><PriorAuthHub /></AppLayout></RequireAuth>} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );

@@ -426,11 +426,6 @@ function PharmaciesTab() {
 export default function FindCare() {
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Find Care</h1>
-        <p className="text-muted-foreground">Neurologists & pharmacies near your ZIP code</p>
-      </div>
-
       <Tabs defaultValue="neurologists" className="w-full">
         <TabsList className="w-full grid grid-cols-2">
           <TabsTrigger value="neurologists" className="flex items-center gap-1.5">

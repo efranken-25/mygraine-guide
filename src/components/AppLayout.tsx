@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Home, Calendar, Pill, ShieldCheck, ClipboardList, Stethoscope, Settings, LogOut, User } from "lucide-react";
+import { Home, Calendar, Pill, ShieldCheck, ClipboardList, Settings, LogOut, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,8 +15,7 @@ const navItems = [
   { to: "/history", icon: ClipboardList, label: "History" },
   { to: "/calendar", icon: Calendar, label: "Calendar" },
   { to: "/medications", icon: Pill, label: "Meds" },
-  { to: "/insurance", icon: ShieldCheck, label: "Insurance" },
-  { to: "/find-care", icon: Stethoscope, label: "Find Care" },
+  { to: "/prior-auth", icon: ShieldCheck, label: "Prior Auth" },
 ];
 
 
