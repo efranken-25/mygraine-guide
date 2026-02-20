@@ -16,7 +16,7 @@ import {
   TrendingUp, CheckCircle, Loader2, ChevronDown, ChevronUp, Sparkles,
   Clock, Activity, FlaskConical,
 } from "lucide-react";
-import { format, isWithinInterval, parseISO, startOfDay, endOfDay } from "date-fns";
+import { format, isWithinInterval, parseISO, startOfDay, endOfDay, parse } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import jsPDF from "jspdf";
@@ -855,15 +855,25 @@ export default function ClinicalReport({ entries }: Props) {
   const chartsRef = useRef<HTMLDivElement>(null);
 
   const filteredEntries = useMemo(() => {
+    const interval = { start: startOfDay(dateFrom), end: endOfDay(dateTo) };
     return entries.filter((e) => {
       const raw = e.date;
-      if (raw.includes("-")) {
-        try {
-          const d = parseISO(raw);
-          return isWithinInterval(d, { start: startOfDay(dateFrom), end: endOfDay(dateTo) });
-        } catch { return true; }
+      try {
+        // ISO format: "2026-02-01"
+        if (/^\d{4}-\d{2}-\d{2}/.test(raw)) {
+          return isWithinInterval(parseISO(raw), interval);
+        }
+        // "MMM d" format: "Mar 26" — assume current year, then try prior year if it falls outside
+        const currentYear = new Date().getFullYear();
+        let d = parse(raw, "MMM d", new Date(currentYear, 0, 1));
+        if (!isWithinInterval(d, interval)) {
+          // try previous year (e.g. entry from last Dec shown in Jan)
+          d = parse(raw, "MMM d", new Date(currentYear - 1, 0, 1));
+        }
+        return isWithinInterval(d, interval);
+      } catch {
+        return true;
       }
-      return true;
     });
   }, [entries, dateFrom, dateTo]);
 
