@@ -60,7 +60,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               <Brain className="h-5 w-5 text-white" />
             </div>
             <span className="text-lg font-bold tracking-tight font-serif" style={{ background: "linear-gradient(120deg, hsl(252 48% 45%), hsl(280 45% 50%))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-              MyGraineGuide
+              MyGraine Guide
             </span>
           </div>
           <div className="flex items-center gap-1">
