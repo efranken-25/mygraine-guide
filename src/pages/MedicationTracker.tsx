@@ -110,7 +110,7 @@ const SUPPLEMENT_SUBTYPES: Record<string, string[]> = {
 
 const SUPPLEMENT_BASE_NAMES = Object.keys(SUPPLEMENT_SUBTYPES);
 
-type Medication = {
+export type Medication = {
   id: number;
   name: string;
   dosage: string;
@@ -120,7 +120,7 @@ type Medication = {
   logs: { time: string }[];
 };
 
-const MOCK_MEDS: Medication[] = [
+export const MOCK_MEDS: Medication[] = [
   { id: 1, name: "Topiramate", dosage: "50mg", classification: "Migraine Prevention", frequency: "Daily", active: true, logs: [{ time: "8:00 AM" }, { time: "8:00 PM" }] },
   { id: 2, name: "Sumatriptan", dosage: "100mg", classification: "Acute/Rescue", frequency: "As needed", active: true, logs: [{ time: "2:30 PM" }] },
   { id: 3, name: "Magnesium Glycinate", dosage: "400mg", classification: "Supplement", frequency: "Daily", active: true, logs: [{ time: "9:00 AM" }] },
