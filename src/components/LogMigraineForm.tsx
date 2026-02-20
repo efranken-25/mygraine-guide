@@ -39,7 +39,7 @@ export default function LogMigraineForm({ onSave, onClose, initialDate }: Props)
   const dateLabel = initialDate ?? today.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
   const [severity, setSeverity] = useState(5);
-  const [area, setArea] = useState("full");
+  const [areas, setAreas] = useState<string[]>(["full"]);
   const [durationHours, setDurationHours] = useState(1);
   const [durationMins, setDurationMins] = useState(0);
   const [symptoms, setSymptoms] = useState<string[]>([]);
@@ -54,7 +54,7 @@ export default function LogMigraineForm({ onSave, onClose, initialDate }: Props)
     set(arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val]);
 
   const handleSave = () => {
-    const areaLabel = HEAD_AREAS.find(a => a.id === area)?.label ?? area;
+    const areaLabel = areas.map(id => HEAD_AREAS.find(a => a.id === id)?.label ?? id).join(", ") || "Full Head";
     onSave({
       id: Date.now(),
       date: dateLabel,
@@ -136,7 +136,7 @@ export default function LogMigraineForm({ onSave, onClose, initialDate }: Props)
           {/* Location */}
           <div className="space-y-2">
             <Label className="text-sm font-medium">Location</Label>
-            <HeadMap value={area} onChange={setArea} />
+            <HeadMap value={areas} onChange={setAreas} multi />
           </div>
 
           {/* Symptoms */}
