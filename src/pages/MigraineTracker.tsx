@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus, Zap } from "lucide-react";
 import LogMigraineForm, { UserEntry } from "@/components/LogMigraineForm";
@@ -34,11 +34,25 @@ function Bloom({ cx, cy, r, petals, fill, opacity }: { cx: number; cy: number; r
   );
 }
 
-function WelcomeBanner() {
+const MIGRAINE_KEYWORDS = ["migraine", "headache", "head hurts", "pain", "throbbing", "pounding", "aura", "nausea", "head ache"];
+
+function WelcomeBanner({ onMigraineDetected }: { onMigraineDetected: () => void }) {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const quoteIdx = new Date().getDate() % CALM_QUOTES.length;
   const quote = CALM_QUOTES[quoteIdx];
+  const [userInput, setUserInput] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleSubmit = () => {
+    if (!userInput.trim()) return;
+    const lower = userInput.toLowerCase();
+    const hasMigraine = MIGRAINE_KEYWORDS.some((kw) => lower.includes(kw));
+    setSubmitted(true);
+    if (hasMigraine) {
+      setTimeout(() => onMigraineDetected(), 600);
+    }
+  };
 
   return (
     <div className="relative rounded-3xl overflow-hidden" style={{
@@ -74,14 +88,59 @@ function WelcomeBanner() {
             How are you feeling?
           </h2>
         </div>
-        <div className="rounded-xl px-3.5 py-2.5" style={{ background: "hsl(0 0% 100% / 0.48)", backdropFilter: "blur(4px)" }}>
-          <p className="text-[12.5px] font-serif italic leading-relaxed" style={{ color: "hsl(262 35% 28%)" }}>
-            "{quote.text}"
-          </p>
-          <p className="text-[10px] mt-1 font-medium" style={{ color: "hsl(262 25% 50%)" }}>
-            — {quote.author}
-          </p>
-        </div>
+
+        {submitted ? (
+          <div className="rounded-xl px-3.5 py-2.5" style={{ background: "hsl(0 0% 100% / 0.55)", backdropFilter: "blur(4px)" }}>
+            <p className="text-[12.5px] leading-relaxed" style={{ color: "hsl(262 35% 28%)" }}>
+              "{userInput}"
+            </p>
+            <button
+              onClick={() => { setSubmitted(false); setUserInput(""); }}
+              className="text-[10px] mt-1 font-medium underline"
+              style={{ color: "hsl(262 25% 50%)" }}
+            >
+              Update
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="rounded-xl px-3.5 py-2.5" style={{ background: "hsl(0 0% 100% / 0.48)", backdropFilter: "blur(4px)" }}>
+              <p className="text-[12.5px] font-serif italic leading-relaxed" style={{ color: "hsl(262 35% 28%)" }}>
+                "{quote.text}"
+              </p>
+              <p className="text-[10px] mt-1 font-medium" style={{ color: "hsl(262 25% 50%)" }}>
+                — {quote.author}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={userInput}
+                onChange={(e) => setUserInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+                placeholder="Tell me how you feel…"
+                className="flex-1 rounded-xl px-3.5 py-2 text-[12.5px] border-0 outline-none"
+                style={{
+                  background: "hsl(0 0% 100% / 0.6)",
+                  backdropFilter: "blur(4px)",
+                  color: "hsl(262 35% 20%)",
+                }}
+              />
+              {userInput.trim() && (
+                <button
+                  onClick={handleSubmit}
+                  className="rounded-xl px-3 py-2 text-[11px] font-semibold transition-all"
+                  style={{
+                    background: "hsl(262 45% 50%)",
+                    color: "white",
+                  }}
+                >
+                  Share
+                </button>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -184,7 +243,7 @@ export default function MigraineTracker() {
 
   return (
     <div className="space-y-5">
-      <WelcomeBanner />
+      <WelcomeBanner onMigraineDetected={() => setShowForm(true)} />
       <WaterReminderCard />
 
       <Button
