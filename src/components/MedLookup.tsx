@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Search, ChevronDown, ChevronUp, Loader2, AlertCircle, Sparkles, Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import DrugCorrelationPanel from "@/components/DrugCorrelationPanel";
 
 /* ─── Types from drug-lookup edge function ─── */
 interface DrugInfo {
@@ -291,7 +292,20 @@ export default function MedLookup() {
       )}
 
       {/* Result */}
-      {result && !loading && <DrugResultCard drug={result} />}
+      {result && !loading && (
+        <>
+          <DrugResultCard drug={result} />
+          <DrugCorrelationPanel
+            drugName={result.name}
+            drugInfo={{
+              drugClass: result.drugClass,
+              adverseReactions: result.adverseReactions,
+              warnings: result.warnings,
+              drugInteractions: result.drugInteractions,
+            }}
+          />
+        </>
+      )}
     </div>
   );
 }
