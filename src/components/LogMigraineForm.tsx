@@ -298,7 +298,23 @@ export default function LogMigraineForm({ onSave, onClose, initialDate }: Props)
           <div className="space-y-2">
             <Label className="text-sm font-medium">Hormonal status</Label>
             <div className="flex flex-wrap gap-1.5">
-              {["Menstruating", "Ovulating", "Luteal", "Pregnant", "Breastfeeding", "Menopausal"].map((status) => (
+              <button
+                onClick={() => {
+                  if (hormonalStatus.includes("N/A")) {
+                    setHormonalStatus([]);
+                  } else {
+                    setHormonalStatus(["N/A"]);
+                  }
+                }}
+                className={`px-3 py-1.5 rounded-full text-xs transition-all border ${
+                  hormonalStatus.includes("N/A")
+                    ? "bg-muted-foreground/20 text-foreground border-muted-foreground/40"
+                    : "bg-muted text-muted-foreground border-transparent"
+                }`}
+              >
+                Not applicable
+              </button>
+              {!hormonalStatus.includes("N/A") && ["Menstruating", "Ovulating", "Luteal", "Pregnant", "Breastfeeding", "Menopausal"].map((status) => (
                 <button
                   key={status}
                   onClick={() => toggle(hormonalStatus, status, setHormonalStatus)}
@@ -312,6 +328,9 @@ export default function LogMigraineForm({ onSave, onClose, initialDate }: Props)
                 </button>
               ))}
             </div>
+            {hormonalStatus.includes("N/A") && (
+              <p className="text-[10px] text-muted-foreground">Hormonal tracking disabled for this entry</p>
+            )}
           </div>
 
           {/* Notes */}
