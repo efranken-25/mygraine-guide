@@ -298,7 +298,7 @@ export default function LogMigraineForm({ onSave, onClose, initialDate }: Props)
           <div className="space-y-2">
             <Label className="text-sm font-medium">Hormonal status</Label>
             <div className="flex flex-wrap gap-1.5">
-              {["Pregnant", "Breastfeeding", "Menopausal"].map((status) => (
+              {["Menstruating", "Ovulating", "Luteal", "Pregnant", "Breastfeeding", "Menopausal"].map((status) => (
                 <button
                   key={status}
                   onClick={() => toggle(hormonalStatus, status, setHormonalStatus)}
