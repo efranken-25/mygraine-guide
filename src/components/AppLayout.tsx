@@ -1,12 +1,14 @@
 import { ReactNode, useEffect, useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
-import { Home, Calendar, Pill, ShieldCheck, ClipboardList, Moon, Sun, Stethoscope, Settings } from "lucide-react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { Home, Calendar, Pill, ShieldCheck, ClipboardList, Stethoscope, Settings, LogOut, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { useAuth } from "@/lib/auth";
 
 const navItems = [
   { to: "/", icon: Home, label: "Home" },
@@ -20,6 +22,8 @@ const navItems = [
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
   const [dark, setDark] = useState(() => {
     if (typeof window !== "undefined") {
       return document.documentElement.classList.contains("dark") ||
@@ -77,6 +81,22 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               </PopoverTrigger>
               <PopoverContent align="end" className="w-64 p-4 space-y-4">
                 <p className="text-sm font-semibold">Settings</p>
+
+                {/* User info */}
+                {user && (
+                  <div className="flex items-center gap-3 rounded-xl bg-muted/50 px-3 py-2.5">
+                    <div className="flex-shrink-0 rounded-full bg-primary/10 p-2">
+                      <User className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{user.displayName}</p>
+                      <p className="text-[10px] text-muted-foreground truncate">{user.email}</p>
+                    </div>
+                  </div>
+                )}
+
+                <Separator />
+
                 <div className="flex items-center justify-between gap-3">
                   <Label htmlFor="dark-toggle" className="text-sm cursor-pointer">Dark mode</Label>
                   <Switch id="dark-toggle" checked={dark} onCheckedChange={setDark} />
@@ -90,6 +110,17 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                   </div>
                   <Switch id="mute-alerts" checked={muteAlerts} onCheckedChange={toggleMuteAlerts} />
                 </div>
+
+                <Separator />
+
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => { signOut(); navigate("/auth"); }}
+                >
+                  <LogOut className="h-4 w-4" />
+                  Sign out
+                </Button>
               </PopoverContent>
             </Popover>
           </div>
