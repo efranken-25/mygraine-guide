@@ -1,6 +1,6 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Pill, GitCompareArrows, Search } from "lucide-react";
-import MedicationTracker from "@/pages/MedicationTracker";
+import MedicationTracker, { MOCK_MEDS } from "@/pages/MedicationTracker";
 import CompareMedications from "@/pages/CompareMedications";
 import MedLookup from "@/components/MedLookup";
 
@@ -30,7 +30,7 @@ export default function MedicationsPage() {
         </TabsContent>
 
         <TabsContent value="lookup" className="mt-4">
-          <MedLookup />
+          <MedLookup localMedications={MOCK_MEDS} />
         </TabsContent>
 
         <TabsContent value="compare" className="mt-4">

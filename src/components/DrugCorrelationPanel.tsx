@@ -62,9 +62,11 @@ const roleConfig: Record<string, { color: string; label: string }> = {
 export default function DrugCorrelationPanel({
   drugName,
   drugInfo,
+  localMedications,
 }: {
   drugName: string;
   drugInfo: DrugInfo;
+  localMedications?: { name: string; dosage: string; classification: string; frequency: string; active: boolean }[];
 }) {
   const { user } = useAuth();
   const [data, setData] = useState<CorrelationData | null>(null);
@@ -79,26 +81,39 @@ export default function DrugCorrelationPanel({
   }, [drugName]);
 
   const analyze = async () => {
-    if (!user) {
-      setError("Sign in to compare against your medication list.");
-      return;
-    }
-
     setLoading(true);
     setError(null);
 
     try {
-      const [{ data: meds }, { data: entries }] = await Promise.all([
-        supabase.from("medications").select("*").eq("user_id", user.id),
-        supabase
-          .from("migraine_entries")
-          .select("*")
-          .eq("user_id", user.id)
-          .gte("started_at", subDays(new Date(), 30).toISOString())
-          .order("started_at", { ascending: false }),
-      ]);
+      let meds: any[] = [];
+      let entries: any[] = [];
 
-      if (!meds || meds.length === 0) {
+      if (user) {
+        const [medsRes, entriesRes] = await Promise.all([
+          supabase.from("medications").select("*").eq("user_id", user.id),
+          supabase
+            .from("migraine_entries")
+            .select("*")
+            .eq("user_id", user.id)
+            .gte("started_at", subDays(new Date(), 30).toISOString())
+            .order("started_at", { ascending: false }),
+        ]);
+        meds = medsRes.data || [];
+        entries = entriesRes.data || [];
+      }
+
+      // Fall back to local med list if no DB meds
+      if (meds.length === 0 && localMedications && localMedications.length > 0) {
+        meds = localMedications.filter(m => m.active).map(m => ({
+          name: m.name,
+          dosage: m.dosage,
+          med_type: m.classification === "Acute/Rescue" ? "acute" : "preventive",
+          frequency: m.frequency,
+          active: m.active,
+        }));
+      }
+
+      if (meds.length === 0) {
         setHasMeds(false);
         return;
       }

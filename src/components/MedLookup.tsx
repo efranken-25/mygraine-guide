@@ -184,7 +184,7 @@ function DrugResultCard({ drug }: { drug: DrugInfo }) {
   );
 }
 
-export default function MedLookup() {
+export default function MedLookup({ localMedications }: { localMedications?: { name: string; dosage: string; classification: string; frequency: string; active: boolean }[] } = {}) {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<DrugInfo | null>(null);
@@ -303,6 +303,7 @@ export default function MedLookup() {
               warnings: result.warnings,
               drugInteractions: result.drugInteractions,
             }}
+            localMedications={localMedications}
           />
         </>
       )}
