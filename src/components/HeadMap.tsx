@@ -115,37 +115,56 @@ const REGIONS: Region[] = [
   },
 ];
 
-export default function HeadMap({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  const selected = value;
+// Single-select props
+type SingleProps = { value: string; onChange: (v: string) => void; multi?: false };
+// Multi-select props
+type MultiProps = { value: string[]; onChange: (v: string[]) => void; multi: true };
+
+type Props = SingleProps | MultiProps;
+
+export default function HeadMap(props: Props) {
+  const isSelected = (id: string) =>
+    props.multi ? props.value.includes(id) : props.value === id;
+
+  const handleClick = (id: string) => {
+    if (props.multi) {
+      const cur = props.value as string[];
+      if (id === "full") {
+        // Toggle "full" clears others or sets just full
+        props.onChange(cur.includes("full") ? [] : ["full"]);
+      } else {
+        const without = cur.filter((x) => x !== "full" && x !== id);
+        props.onChange(cur.includes(id) ? without : [...without, id]);
+      }
+    } else {
+      (props.onChange as (v: string) => void)(id);
+    }
+  };
 
   const fillFor = (id: string) => {
     if (id === "full") {
-      return selected === "full"
+      return isSelected("full")
         ? "hsl(var(--primary) / 0.25)"
         : "hsl(var(--muted) / 0.3)";
     }
-    return selected === id
+    return isSelected(id)
       ? "hsl(var(--primary) / 0.7)"
       : "hsl(var(--muted) / 0.15)";
   };
 
   const strokeFor = (id: string) =>
-    selected === id ? "hsl(var(--primary))" : "hsl(var(--border))";
+    isSelected(id) ? "hsl(var(--primary))" : "hsl(var(--border))";
 
   const textFillFor = (id: string) =>
-    selected === id ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))";
+    isSelected(id) ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))";
 
-  const selectedArea = HEAD_AREAS.find((a) => a.id === selected);
+  const selectedAreas = HEAD_AREAS.filter((a) => isSelected(a.id));
 
   return (
     <div className="flex flex-col items-center gap-3">
-      <p className="text-sm font-medium text-muted-foreground">Tap to select affected area</p>
+      <p className="text-sm font-medium text-muted-foreground">
+        {props.multi ? "Tap to select affected areas" : "Tap to select affected area"}
+      </p>
 
       <svg
         viewBox="0 0 200 240"
@@ -156,7 +175,7 @@ export default function HeadMap({
         {REGIONS.filter((r) => r.id === "full").map((region) => (
           <g
             key={region.id}
-            onClick={() => onChange(region.id)}
+            onClick={() => handleClick(region.id)}
             className="cursor-pointer"
             style={{ transition: "opacity 0.15s" }}
           >
@@ -165,7 +184,7 @@ export default function HeadMap({
                 d={region.path}
                 fill={fillFor(region.id)}
                 stroke={strokeFor(region.id)}
-                strokeWidth={selected === region.id ? 2 : 1.5}
+                strokeWidth={isSelected(region.id) ? 2 : 1.5}
               />
             )}
           </g>
@@ -189,7 +208,7 @@ export default function HeadMap({
         {REGIONS.filter((r) => r.id !== "full").map((region) => (
           <g
             key={region.id}
-            onClick={() => onChange(region.id)}
+            onClick={() => handleClick(region.id)}
             className="cursor-pointer"
           >
             {region.path && (
@@ -197,7 +216,7 @@ export default function HeadMap({
                 d={region.path}
                 fill={fillFor(region.id)}
                 stroke={strokeFor(region.id)}
-                strokeWidth={selected === region.id ? 2 : 1}
+                strokeWidth={isSelected(region.id) ? 2 : 1}
                 style={{ transition: "fill 0.15s, stroke 0.15s" }}
               />
             )}
@@ -209,7 +228,7 @@ export default function HeadMap({
                 ry={region.ellipse.ry}
                 fill={fillFor(region.id)}
                 stroke={strokeFor(region.id)}
-                strokeWidth={selected === region.id ? 2 : 1}
+                strokeWidth={isSelected(region.id) ? 2 : 1}
                 style={{ transition: "fill 0.15s, stroke 0.15s" }}
               />
             )}
@@ -220,7 +239,7 @@ export default function HeadMap({
               textAnchor="middle"
               dominantBaseline="middle"
               fontSize={region.id === "neck" ? "7" : "6"}
-              fontWeight={selected === region.id ? "700" : "400"}
+              fontWeight={isSelected(region.id) ? "700" : "400"}
               fill={textFillFor(region.id)}
               style={{ pointerEvents: "none", transition: "fill 0.15s" }}
             >
@@ -230,7 +249,7 @@ export default function HeadMap({
         ))}
 
         {/* "Whole Head" label inside when selected */}
-        {selected === "full" && (
+        {isSelected("full") && (
           <text
             x="100"
             y="118"
@@ -248,13 +267,10 @@ export default function HeadMap({
 
       {/* Selected area label */}
       <div className="flex flex-col items-center gap-0.5">
-        {selectedArea ? (
-          <>
-            <span className="text-sm font-semibold text-foreground">{selectedArea.label}</span>
-            {selectedArea.sublabel && (
-              <span className="text-xs text-muted-foreground">{selectedArea.sublabel}</span>
-            )}
-          </>
+        {selectedAreas.length > 0 ? (
+          <span className="text-sm font-semibold text-foreground">
+            {selectedAreas.map((a) => a.label).join(", ")}
+          </span>
         ) : (
           <span className="text-xs text-muted-foreground">No area selected</span>
         )}
@@ -266,10 +282,10 @@ export default function HeadMap({
           <button
             key={area.id}
             type="button"
-            onClick={() => onChange(area.id)}
+            onClick={() => handleClick(area.id)}
             className={cn(
               "rounded-full px-2.5 py-1 text-xs font-medium border transition-all",
-              value === area.id
+              isSelected(area.id)
                 ? "bg-primary text-primary-foreground border-primary"
                 : "bg-background border-border text-muted-foreground hover:bg-muted"
             )}
