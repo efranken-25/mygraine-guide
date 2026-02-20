@@ -29,6 +29,7 @@ export interface UserEntry {
   weather: string;
   sleep: number;
   caffeine: number;
+  water: number;
   stress: string;
   skippedMeal: boolean;
   notes: string;
@@ -54,9 +55,11 @@ export default function LogMigraineForm({ onSave, onClose, initialDate }: Props)
   const [meds, setMeds] = useState<string[]>([]);
   const [sleep, setSleep] = useState(7);
   const [caffeine, setCaffeine] = useState(0);
+  const [water, setWater] = useState(0);
   const [notes, setNotes] = useState("");
   const [sleepUnknown, setSleepUnknown] = useState(false);
   const [caffeineUnknown, setCaffeineUnknown] = useState(false);
+  const [waterUnknown, setWaterUnknown] = useState(false);
   const [skippedMeal, setSkippedMeal] = useState(false);
   const [hormonalStatus, setHormonalStatus] = useState<string[]>([]);
   const [medEffectiveness, setMedEffectiveness] = useState<Record<string, MedEffectiveness>>({});
@@ -100,6 +103,7 @@ export default function LogMigraineForm({ onSave, onClose, initialDate }: Props)
       weather: "—",
       sleep,
       caffeine,
+      water,
       stress: severity >= 8 ? "Very High" : severity >= 5 ? "High" : "Moderate",
       skippedMeal,
       hormonalStatus: hormonalStatus.length > 0 ? hormonalStatus : undefined,
@@ -321,21 +325,21 @@ export default function LogMigraineForm({ onSave, onClose, initialDate }: Props)
             </div>
           )}
 
-          {/* Sleep + Caffeine */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Sleep + Caffeine + Water */}
+          <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-sm font-medium">Sleep last night (h)</Label>
+              <Label className="text-sm font-medium">Sleep (h)</Label>
               {sleepUnknown ? (
                 <button
                   onClick={() => setSleepUnknown(false)}
-                  className="w-full px-3 py-2 rounded-md text-xs bg-muted-foreground/20 text-foreground border border-muted-foreground/40 text-center"
+                  className="w-full px-2 py-2 rounded-md text-[10px] bg-muted-foreground/20 text-foreground border border-muted-foreground/40 text-center"
                 >
-                  I don't know ✕
+                  Unknown ✕
                 </button>
               ) : (
-                <div className="flex gap-1.5">
+                <div className="flex gap-1">
                   <Input type="number" min={0} max={24} step={0.5} value={sleep} onChange={(e) => setSleep(Number(e.target.value))} className="flex-1" />
-                  <button onClick={() => setSleepUnknown(true)} className="px-2 py-1 rounded-md text-[10px] bg-muted text-muted-foreground border border-transparent hover:border-muted-foreground/30 shrink-0">?</button>
+                  <button onClick={() => setSleepUnknown(true)} className="px-1.5 py-1 rounded-md text-[10px] bg-muted text-muted-foreground border border-transparent hover:border-muted-foreground/30 shrink-0">?</button>
                 </div>
               )}
             </div>
@@ -344,14 +348,30 @@ export default function LogMigraineForm({ onSave, onClose, initialDate }: Props)
               {caffeineUnknown ? (
                 <button
                   onClick={() => setCaffeineUnknown(false)}
-                  className="w-full px-3 py-2 rounded-md text-xs bg-muted-foreground/20 text-foreground border border-muted-foreground/40 text-center"
+                  className="w-full px-2 py-2 rounded-md text-[10px] bg-muted-foreground/20 text-foreground border border-muted-foreground/40 text-center"
                 >
-                  I don't know ✕
+                  Unknown ✕
                 </button>
               ) : (
-                <div className="flex gap-1.5">
+                <div className="flex gap-1">
                   <Input type="number" min={0} max={1000} value={caffeine} onChange={(e) => setCaffeine(Number(e.target.value))} className="flex-1" />
-                  <button onClick={() => setCaffeineUnknown(true)} className="px-2 py-1 rounded-md text-[10px] bg-muted text-muted-foreground border border-transparent hover:border-muted-foreground/30 shrink-0">?</button>
+                  <button onClick={() => setCaffeineUnknown(true)} className="px-1.5 py-1 rounded-md text-[10px] bg-muted text-muted-foreground border border-transparent hover:border-muted-foreground/30 shrink-0">?</button>
+                </div>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Water (glasses)</Label>
+              {waterUnknown ? (
+                <button
+                  onClick={() => setWaterUnknown(false)}
+                  className="w-full px-2 py-2 rounded-md text-[10px] bg-muted-foreground/20 text-foreground border border-muted-foreground/40 text-center"
+                >
+                  Unknown ✕
+                </button>
+              ) : (
+                <div className="flex gap-1">
+                  <Input type="number" min={0} max={20} value={water} onChange={(e) => setWater(Number(e.target.value))} className="flex-1" />
+                  <button onClick={() => setWaterUnknown(true)} className="px-1.5 py-1 rounded-md text-[10px] bg-muted text-muted-foreground border border-transparent hover:border-muted-foreground/30 shrink-0">?</button>
                 </div>
               )}
             </div>
